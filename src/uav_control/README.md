@@ -16,8 +16,7 @@ Parameters can be set at launch or dynamically updated via `ros2 param set`.
 
 ## Subscribed Topics
 
-- `/fmu/out/vehicle_local_position_v1` (and `/fmu/out/vehicle_local_position`) [`px4_msgs/msg/VehicleLocalPosition`]: Drone position and heading in NED frame.
-- `/fmu/out/vehicle_status_v1` (and `/fmu/out/vehicle_status`) [`px4_msgs/msg/VehicleStatus`]: Drone arming state and navigation mode.
+- `/fmu/out/vehicle_local_position_v1` (fallback: `/fmu/out/vehicle_local_position`) [`px4_msgs/msg/VehicleLocalPosition`]: Drone position and heading in NED frame.
 
 ## Published Topics
 

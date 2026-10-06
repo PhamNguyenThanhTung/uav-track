@@ -40,12 +40,15 @@ from px4_msgs.msg import VehicleLocalPosition
 import gz.transport13
 from gz.msgs10.world_stats_pb2 import WorldStatistics
 
-PROJECT_DIR = os.path.dirname(SCRIPT_DIR)
-RESULTS_DIR = os.path.join(SCRIPT_DIR, 'results')
+from pathlib import Path
+
+SCRIPT_PATH = Path(__file__).resolve().parent
+PROJECT_DIR = str(SCRIPT_PATH.parent)
+RESULTS_DIR = str(SCRIPT_PATH / 'results')
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
-# Also support artifact directory if running in agent environment
-ARTIFACT_DIR = '/home/tungt/.gemini/antigravity/brain/4e84b250-935e-402c-a1b1-af1e4e656a60'
+# Optional external artifact directory via environment variable
+ARTIFACT_DIR = os.environ.get('AGENT_ARTIFACT_DIR')
 
 CYCLE_DURATION = 186.5
 # In-cycle phase intervals
@@ -456,7 +459,7 @@ def run_verification_mode(node: RigorousBenchmarkEvaluator, verify_sec: float):
         img_file = os.path.join(RESULTS_DIR, f'verification_{int(verify_sec)}s_snapshot.png')
         cv2.imwrite(img_file, node.latest_annotated_frame)
         print(f"[VERIFICATION] Saved snapshot to {img_file}")
-        if os.path.isdir(ARTIFACT_DIR):
+        if ARTIFACT_DIR and os.path.isdir(ARTIFACT_DIR):
             art_img = os.path.join(ARTIFACT_DIR, 'verification_annotated_snapshot.png')
             cv2.imwrite(art_img, node.latest_annotated_frame)
 
