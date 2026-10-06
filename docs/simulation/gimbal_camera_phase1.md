@@ -1,6 +1,12 @@
 # Phase 1 - X500 Camera + Gimbal
 
-## Goal
+> Status: HISTORICAL MILESTONE
+>
+> This document records the system state at the time of this milestone.
+> It is not the current system source of truth.
+> See `/PROGRESS.md`, `/docs/project_overview.md`, and `/docs/system_contract.md` for the current system state.
+
+
 Demonstrate physical/mechanical integration of a 3-DOF gimbal and downward-facing RGB camera on a custom X500 UAV model in Gazebo Harmonic. Verify joint motion limits and image publication to ROS 2.
 
 ## Model

@@ -1,6 +1,12 @@
 # Phase 3 - Integration of X500 + Camera + Gimbal with PX4 SITL
 
-## 1. System Architecture
+> Status: HISTORICAL MILESTONE
+>
+> This document records the system state at the time of this milestone.
+> It is not the current system source of truth.
+> See `/PROGRESS.md`, `/docs/project_overview.md`, and `/docs/system_contract.md` for the current system state.
+
+
 
 Phase 3 unifies the physical model from Phase 1 (`custom_x500_gimbal_down` with 3-DOF gimbal and downward RGB camera) and the autonomous flight stack from Phase 2 (PX4 SITL + Micro XRCE-DDS Agent + ROS 2 `altitude_control` offboard node).
 

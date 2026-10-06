@@ -1,6 +1,12 @@
 # Phase 2 - Altitude Control & Offboard Integration
 
-## Goal
+> Status: HISTORICAL MILESTONE
+>
+> This document records the system state at the time of this milestone.
+> It is not the current system source of truth.
+> See `/PROGRESS.md`, `/docs/project_overview.md`, and `/docs/system_contract.md` for the current system state.
+
+
 
 Phase 2 verifies the autonomous flight stack of PX4 in Gazebo Harmonic and establishes the project's first ROS 2 C++ offboard flight controller node:
 1. **Part A — Baseline PX4 Flight Stack**: Validate takeoff to 2 m, stable hover, and safe landing using native PX4 commander commands on an X500 multicopter in Gazebo Harmonic.
