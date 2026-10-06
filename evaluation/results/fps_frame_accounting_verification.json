@@ -1,0 +1,60 @@
+{
+  "metadata": {
+    "target_sim_duration_sec": 25.0,
+    "sim_duration_sec": 25.012,
+    "wall_duration_sec": 108.5324,
+    "real_time_factor": 0.2305,
+    "camera_configured_rate_hz": 30.0
+  },
+  "source_camera": {
+    "frame_count": 311,
+    "source_rate_sim_hz": 12.43,
+    "source_rate_wall_hz": 2.87,
+    "first_stamp": 24.62,
+    "last_stamp": 49.008,
+    "stamp_period_stats_sec": {
+      "min": 0.032,
+      "median": 0.036,
+      "mean": 0.0787,
+      "p95": 0.2,
+      "max": 0.464
+    },
+    "effective_source_hz": 27.78
+  },
+  "evaluator_subscriber": {
+    "received_frame_count": 311,
+    "receive_rate_sim_hz": 12.43,
+    "receive_rate_wall_hz": 2.87,
+    "evaluator_drop_count": 0,
+    "evaluator_drop_ratio_pct": 0.0
+  },
+  "yolo_pipeline": {
+    "total_detections_published": 340,
+    "frames_processed": 303,
+    "frames_dropped_busy_queue": 8,
+    "coverage_on_evaluator_received_pct": 97.43,
+    "coverage_on_source_published_pct": 97.43,
+    "processing_rate_sim_hz": 12.11,
+    "processing_rate_wall_hz": 2.79,
+    "latency_ms": {
+      "min": -6709.201335906982,
+      "median": 33.80441665649414,
+      "mean": 36.6833760793453,
+      "p95": 47.969031333923326,
+      "max": 7193.870306015015
+    }
+  },
+  "detection_breakdown": {
+    "processed_with_person": 303,
+    "processed_without_person_len0": 0,
+    "matching_failures": 0,
+    "person_detections_among_processed_frames_pct": 100.0,
+    "person_detections_among_evaluator_stream_pct": 97.43,
+    "person_detections_among_source_stream_pct": 97.43
+  },
+  "timestamp_matching_verification": {
+    "exact_matches": 303,
+    "orphan_detections": 37,
+    "matching_rate_pct": 89.12
+  }
+}

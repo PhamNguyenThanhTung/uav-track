@@ -1,0 +1,38 @@
+# ROS 2 <-> Gazebo Harmonic Bridge Configuration for Phase 3
+# Camera Topics
+- ros_topic_name: "/custom_x500/camera/image_raw"
+  gz_topic_name: "/custom_x500/camera/image_raw"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/custom_x500/camera/camera_info"
+  gz_topic_name: "/custom_x500/camera/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "gz.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+
+- ros_topic_name: "/observer/camera/image_raw"
+  gz_topic_name: "/observer/camera/image_raw"
+  ros_type_name: "sensor_msgs/msg/Image"
+  gz_type_name: "gz.msgs.Image"
+  direction: GZ_TO_ROS
+
+# Gimbal Control Topics (ROS 2 -> Gazebo Harmonic)
+- ros_topic_name: "/custom_x500/gimbal/yaw_cmd"
+  gz_topic_name: "/model/custom_x500_gimbal_down/custom_x500/gimbal/yaw_cmd"
+  ros_type_name: "std_msgs/msg/Float64"
+  gz_type_name: "gz.msgs.Double"
+  direction: ROS_TO_GZ
+
+- ros_topic_name: "/custom_x500/gimbal/pitch_cmd"
+  gz_topic_name: "/model/custom_x500_gimbal_down/custom_x500/gimbal/pitch_cmd"
+  ros_type_name: "std_msgs/msg/Float64"
+  gz_type_name: "gz.msgs.Double"
+  direction: ROS_TO_GZ
+
+- ros_topic_name: "/custom_x500/gimbal/roll_cmd"
+  gz_topic_name: "/model/custom_x500_gimbal_down/custom_x500/gimbal/roll_cmd"
+  ros_type_name: "std_msgs/msg/Float64"
+  gz_type_name: "gz.msgs.Double"
+  direction: ROS_TO_GZ
