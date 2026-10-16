@@ -4,11 +4,11 @@ Camera FPS & Frame Accounting Audit for UAV Tracking Simulation
 Location: project/evaluation/audit_camera_fps_accounting.py
 
 Measures:
-1. True Camera Source Publish Rate (via minimal zero-overhead subscriber)
+1. Camera source rate observed by a minimal subscriber
 2. Evaluator Receive Rate (via benchmark_evaluator callback)
 3. Simulation Clock vs Wall-Clock Duration & Real-Time Factor (RTF)
 4. Header Timestamp Differences & Effective Source Hz
-5. End-to-End Frame Accounting (Source -> Evaluator -> YOLO -> Detector)
+5. Source-stamp accounting across camera and perception subscribers
 """
 
 import sys
@@ -18,7 +18,6 @@ import math
 import csv
 import json
 import argparse
-import collections
 from typing import Dict, List, Any, Optional, Tuple
 
 import numpy as np
@@ -28,13 +27,15 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 if SCRIPT_DIR not in sys.path:
     sys.path.insert(0, SCRIPT_DIR)
 
-from metric_calculator import TrackingMetricCalculator
+from frame_matcher import FrameSampleMatcher
+from uav_perception.telemetry_utils import parse_frame_telemetry
 
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import Image
 from vision_msgs.msg import Detection2DArray
+from std_msgs.msg import Float64MultiArray
 from px4_msgs.msg import VehicleLocalPosition
 
 import gz.transport13
@@ -63,28 +64,36 @@ class CameraFpsAccountingAuditor(Node):
             depth=10
         )
 
-        # 1. Minimal Camera Subscriber (Pure counter, zero overhead, records every arrival)
+        # 1. Minimal Camera Subscriber (counter and stamp observations)
         self.minimal_cam_records: List[Dict[str, Any]] = []
         self.minimal_cam_counter = 0
         self.sub_cam_minimal = self.create_subscription(
             Image, '/custom_x500/camera/image_raw', self.minimal_cam_callback, qos_best_effort
         )
 
-        # 2. Evaluator-style Camera Subscriber (Tests if sliding buffer / processing logic drops frames)
+        # 2. Evaluator-style Camera Subscriber (records this subscriber's observations)
         self.evaluator_samples: List[Dict[str, Any]] = []
+        self.evaluator_frame_records: List[Dict[str, Any]] = []
         self.evaluator_cam_counter = 0
-        self.pending_cam_frames = collections.deque()
-        self.pending_detections: Dict[Tuple[int, int], Tuple[float, float, Detection2DArray]] = {}
+        self.matcher = FrameSampleMatcher(deadline_sec=0.5)
+        self.match_expiration_timer = self.create_timer(0.05, self.process_pending_frames)
         self.sub_cam_evaluator = self.create_subscription(
             Image, '/custom_x500/camera/image_raw', self.evaluator_cam_callback, qos_best_effort
         )
 
-        # 3. YOLO Detection Subscription
+        # 3. Perception outputs joined by source image stamp
         self.raw_detections_records: List[Dict[str, Any]] = []
-        self.total_detections_received = 0
+        self.tracking_messages_received = 0
         self.sub_det = self.create_subscription(
             Detection2DArray, '/yolo/detections', self.det_callback, qos_reliable
         )
+        self.sub_raw_det = self.create_subscription(
+            Detection2DArray, '/yolo/raw_detections', self.raw_det_callback, qos_reliable
+        )
+        self.sub_telemetry = self.create_subscription(
+            Float64MultiArray, '/yolo/telemetry', self.telemetry_callback, 10
+        )
+        self.malformed_telemetry_count = 0
 
         # 4. UAV Telemetry (PX4)
         self.latest_uav_pos: Optional[VehicleLocalPosition] = None
@@ -114,29 +123,40 @@ class CameraFpsAccountingAuditor(Node):
         self.latest_uav_pos = msg
 
     def det_callback(self, msg: Detection2DArray):
-        if not self.is_recording or self.is_completed:
+        if not self.is_recording:
             return
+        self.tracking_messages_received += 1
+        stamp_key = (int(msg.header.stamp.sec), int(msg.header.stamp.nanosec))
+        self._accept_match_results(self.matcher.add_component('tracking', stamp_key, msg, time.monotonic()))
+        self.process_pending_frames()
 
-        t_wall = time.time()
-        sec = int(msg.header.stamp.sec)
-        nsec = int(msg.header.stamp.nanosec)
-        stamp_key = (sec, nsec)
-
-        self.total_detections_received += 1
-        self.pending_detections[stamp_key] = (t_wall, self.sim_time, msg)
+    def raw_det_callback(self, msg: Detection2DArray):
+        if not self.is_recording:
+            return
+        stamp_key = (int(msg.header.stamp.sec), int(msg.header.stamp.nanosec))
         self.raw_detections_records.append({
-            'stamp_sec': sec,
-            'stamp_nsec': nsec,
-            'sim_time': sec + nsec * 1e-9,
-            'wall_arrival': t_wall,
+            'stamp_key': stamp_key,
+            'timestamp': stamp_key[0] + stamp_key[1] * 1e-9,
             'num_detections': len(msg.detections),
-            'has_person': len(msg.detections) > 0
+            'has_person': len(msg.detections) > 0,
         })
+        self._accept_match_results(self.matcher.add_component('raw', stamp_key, msg, time.monotonic()))
+        self.process_pending_frames()
+
+    def telemetry_callback(self, msg: Float64MultiArray):
+        if not self.is_recording:
+            return
+        try:
+            stamp_key, durations = parse_frame_telemetry(msg)
+        except (TypeError, ValueError):
+            self.malformed_telemetry_count += 1
+            return
+        self._accept_match_results(self.matcher.add_component('telemetry', stamp_key, durations, time.monotonic()))
+        self.process_pending_frames()
 
     def minimal_cam_callback(self, msg: Image):
         """
-        Pure, zero-overhead counter callback.
-        Captures msg.header.stamp and arrival wall time.
+        Minimal counter callback capturing the source stamp and arrival time.
         """
         if not self.is_recording or self.is_completed:
             return
@@ -149,8 +169,7 @@ class CameraFpsAccountingAuditor(Node):
         self.minimal_cam_counter += 1
         self.minimal_cam_records.append({
             'frame_index': self.minimal_cam_counter,
-            'stamp_sec': sec,
-            'stamp_nsec': nsec,
+            'stamp_key': (sec, nsec),
             'timestamp': t_stamp,
             'wall_arrival': t_wall,
             'sim_arrival': self.sim_time
@@ -158,7 +177,7 @@ class CameraFpsAccountingAuditor(Node):
 
     def evaluator_cam_callback(self, msg: Image):
         """
-        Evaluator-style callback to verify whether evaluator-side queue or processing drops frames.
+        Evaluator-style callback that records frames observed by this subscriber.
         """
         if not self.is_recording or self.is_completed:
             return
@@ -180,79 +199,101 @@ class CameraFpsAccountingAuditor(Node):
             'stamp_key': (sec, nsec),
             'timestamp': float(t_stamp),
             'wall_arrival': t_wall,
-            'sim_arrival': self.sim_time,
+            'arrival_monotonic': time.monotonic(),
             'uav_x': u_x,
             'uav_y': u_y,
             'uav_z': u_z
         }
-        self.pending_cam_frames.append(frame_record)
-        self.process_pending_frames(buffer_delay_sec=0.50)
+        self.evaluator_frame_records.append(frame_record)
+        self._accept_match_results(self.matcher.add_frame(frame_record, frame_record['arrival_monotonic']))
+        self.process_pending_frames()
 
     def process_pending_frames(self, buffer_delay_sec: float = 0.50):
-        now_sim = self.sim_time
-        now_wall = time.time()
+        now = time.monotonic()
+        results = self.matcher.expire(now, force=(buffer_delay_sec == 0.0))
+        self._accept_match_results(results)
 
-        while self.pending_cam_frames:
-            head = self.pending_cam_frames[0]
-            stamp_key = head['stamp_key']
+    def _accept_match_results(self, results):
+        for result in results:
+            components = result['components']
+            raw = components['raw']
+            tracking = components['tracking']
+            telemetry = components['telemetry']
+            self._record_evaluator_sample(
+                result['frame'],
+                raw_det=raw['payload'] if raw else None,
+                tracking_det=tracking['payload'] if tracking else None,
+                telemetry=telemetry['payload'] if telemetry else None,
+                match_status=result['match_status'],
+            )
 
-            if stamp_key in self.pending_detections:
-                self.pending_cam_frames.popleft()
-                det_wall, det_sim, det_msg = self.pending_detections.pop(stamp_key)
-                self._record_evaluator_sample(head, matching_det=det_msg, det_wall=det_wall, is_processed=True)
-            else:
-                sim_wait = now_sim - head['sim_arrival']
-                wall_wait = now_wall - head['wall_arrival']
-                if sim_wait >= buffer_delay_sec or wall_wait >= max(1.0, buffer_delay_sec * 2.0):
-                    self.pending_cam_frames.popleft()
-                    self._record_evaluator_sample(head, matching_det=None, det_wall=None, is_processed=False)
-                else:
-                    break
+    def drain_and_flush_pending_frames(self, drain_timeout_sec: float = 1.0):
+        t0 = time.monotonic()
+        while rclpy.ok() and self.matcher.pending_frames and (time.monotonic() - t0 < drain_timeout_sec):
+            rclpy.spin_once(self, timeout_sec=0.05)
+            self.process_pending_frames()
+        self.process_pending_frames(buffer_delay_sec=0.0)
 
     def flush_pending_frames(self):
-        self.process_pending_frames(buffer_delay_sec=0.0)
+        self.drain_and_flush_pending_frames(drain_timeout_sec=1.0)
 
     def _record_evaluator_sample(
         self,
         frame_record: Dict[str, Any],
-        matching_det: Optional[Detection2DArray],
-        det_wall: Optional[float],
-        is_processed: bool
-    ):
-        detection_present = False
-        track_present = False
+        raw_det: Optional[Detection2DArray],
+        tracking_det: Optional[Detection2DArray],
+        telemetry: Optional[Dict[str, float]],
+        match_status: str
+    ) -> Dict[str, Any]:
+        raw_available = raw_det is not None
+        raw_present = (len(raw_det.detections) > 0) if raw_available else None
+        tracking_available = tracking_det is not None
+        detection_present = (len(tracking_det.detections) > 0) if tracking_available else None
+        track_present: Optional[bool] = None
         track_id: Optional[str] = None
         conf: Optional[float] = None
-        latency_ms: Optional[float] = None
-        detector_miss = False
-        unprocessed = not is_processed
+        if tracking_available and tracking_det.detections:
+            track_present = False
+            d = tracking_det.detections[0]
+            if d.id and d.id != "" and d.id != "-1":
+                track_present = True
+                track_id = str(d.id)
+            if len(d.results) > 0:
+                conf = float(d.results[0].hypothesis.score)
+        elif tracking_available:
+            track_present = False
 
-        if is_processed and matching_det is not None:
-            if det_wall is not None:
-                latency_ms = (det_wall - frame_record['wall_arrival']) * 1000.0
-
-            if len(matching_det.detections) > 0:
-                detection_present = True
-                d = matching_det.detections[0]
-                if d.id and d.id != "" and d.id != "-1":
-                    track_present = True
-                    track_id = str(d.id)
-                if len(d.results) > 0:
-                    conf = float(d.results[0].hypothesis.score)
-            else:
-                detector_miss = True
+        processing_ms = telemetry.get('processing_duration_ms') if telemetry else None
+        detector_miss = (raw_present is False) if raw_available else None
+        tracking_miss = (track_present is False) if tracking_available else None
 
         sample = {
             'test_name': f'Accounting Test ({self.target_sim_duration:.0f}s)',
             'timestamp': float(frame_record['timestamp']),
             'camera_frame_index': int(frame_record['frame_idx']),
-            'is_processed': bool(is_processed),
-            'detection_present': bool(detection_present),
-            'detector_miss': bool(detector_miss),
-            'unprocessed': bool(unprocessed),
+            'source_stamp_sec': int(frame_record['stamp_key'][0]),
+            'source_stamp_nanosec': int(frame_record['stamp_key'][1]),
+            'match_status': match_status,
+            'match_complete': match_status == 'complete',
+            'matching_timeout': match_status == 'incomplete_timeout',
+            'matching_incomplete': match_status != 'complete',
+            'raw_detection_available': raw_available,
+            'raw_detection_present': raw_present,
+            'raw_detection_count': len(raw_det.detections) if raw_available else None,
+            'tracking_output_available': tracking_available,
+            'detection_present': detection_present,
+            'detector_miss': detector_miss,
+            'tracking_miss': tracking_miss,
+            'is_processed': True if telemetry is not None else None,
+            'processing_duration_available': telemetry is not None,
+            'unprocessed': None,
             'matching_failure': False,
-            'processing_latency_ms': latency_ms,
-            'track_present': bool(track_present),
+            'actual_processing_latency_ms': processing_ms,
+            'processing_latency_ms': processing_ms,
+            'yolo_latency_ms': telemetry.get('yolo_duration_ms') if telemetry else None,
+            'tracker_latency_ms': telemetry.get('tracker_duration_ms') if telemetry else None,
+            'transport_callback_skew_ms': None,
+            'track_present': track_present,
             'track_id': track_id,
             'detection_confidence': conf,
             'uav_x': float(frame_record['uav_x']),
@@ -260,6 +301,8 @@ class CameraFpsAccountingAuditor(Node):
             'uav_z': float(frame_record['uav_z'])
         }
         self.evaluator_samples.append(sample)
+        self.evaluator_samples.sort(key=lambda item: (item['timestamp'], item['camera_frame_index']))
+        return sample
 
 
 def run_audit(target_sim_duration: float = 25.0):
@@ -271,10 +314,15 @@ def run_audit(target_sim_duration: float = 25.0):
     print(f"================================================================================")
     print("[AUDIT] Waiting for Gazebo clock, camera frames, and YOLO detections...")
 
-    t0 = time.time()
+    t0 = time.monotonic()
+    startup_interrupted = False
     while rclpy.ok() and (node.sim_time == 0.0 or node.latest_uav_pos is None):
-        rclpy.spin_once(node, timeout_sec=0.1)
-        if time.time() - t0 > 30.0:
+        try:
+            rclpy.spin_once(node, timeout_sec=0.1)
+        except KeyboardInterrupt:
+            startup_interrupted = True
+            break
+        if time.monotonic() - t0 > 30.0:
             print("[WARN] Timed out waiting for initial topics.")
             break
 
@@ -282,40 +330,57 @@ def run_audit(target_sim_duration: float = 25.0):
     print(f"[AUDIT] Starting measurement window for {target_sim_duration:.1f}s simulation time...")
 
     node.sim_time_start = node.sim_time
-    node.wall_time_start = time.time()
+    node.wall_time_start = time.monotonic()
     node.is_recording = True
+    completion_reason = 'interrupted' if startup_interrupted else 'target_duration_reached'
 
-    last_print = time.time()
+    last_print = time.monotonic()
     # Generous wall timeout (e.g. 180s) to allow slow RTF (e.g. 0.15) to complete full sim duration
     max_wall_timeout = target_sim_duration * 10.0 + 30.0
 
-    while rclpy.ok():
-        rclpy.spin_once(node, timeout_sec=0.005)
+    while rclpy.ok() and completion_reason != 'interrupted':
+        try:
+            rclpy.spin_once(node, timeout_sec=0.005)
+        except KeyboardInterrupt:
+            completion_reason = 'interrupted'
+            node.is_completed = True
+            node.sim_time_end = node.sim_time
+            node.wall_time_end = time.monotonic()
+            break
         elapsed_sim = node.sim_time - node.sim_time_start
-        elapsed_wall = time.time() - node.wall_time_start
+        elapsed_wall = time.monotonic() - node.wall_time_start
 
         if elapsed_sim >= target_sim_duration:
             node.is_completed = True
             node.sim_time_end = node.sim_time
-            node.wall_time_end = time.time()
+            node.wall_time_end = time.monotonic()
             print(f"\n[AUDIT] Target simulation duration reached: {elapsed_sim:.2f}s (Wall time: {elapsed_wall:.2f}s)")
             break
 
         if elapsed_wall >= max_wall_timeout:
+            completion_reason = 'wall_timeout'
             node.is_completed = True
             node.sim_time_end = node.sim_time
-            node.wall_time_end = time.time()
+            node.wall_time_end = time.monotonic()
             print(f"\n[AUDIT] Max wall timeout reached: {elapsed_wall:.2f}s (Sim time: {elapsed_sim:.2f}s)")
             break
 
-        if time.time() - last_print >= 2.0:
+        if time.monotonic() - last_print >= 2.0:
             rtf_live = elapsed_sim / elapsed_wall if elapsed_wall > 0 else 0.0
-            print(f" [Audit Running] Sim: {elapsed_sim:4.1f}s / {target_sim_duration:.1f}s | Wall: {elapsed_wall:4.1f}s | RTF: {rtf_live:.2f} | Minimal: {node.minimal_cam_counter:3d} | Evaluator: {len(node.evaluator_samples):3d} | YOLO Dets: {node.total_detections_received:3d}")
-            last_print = time.time()
+            print(f" [Audit Running] Sim: {elapsed_sim:4.1f}s / {target_sim_duration:.1f}s | Wall: {elapsed_wall:4.1f}s | RTF: {rtf_live:.2f} | Minimal: {node.minimal_cam_counter:3d} | Evaluator subscriber: {node.evaluator_cam_counter:3d} | Raw messages: {len(node.raw_detections_records):3d}")
+            last_print = time.monotonic()
+
+    if node.sim_time_end is None:
+        if completion_reason == 'target_duration_reached':
+            completion_reason = 'stopped'
+        node.is_completed = True
+        node.sim_time_end = node.sim_time
+        node.wall_time_end = time.monotonic()
 
     # Flush evaluator buffer
     print("[AUDIT] Flushing evaluator sliding buffer...")
     node.flush_pending_frames()
+    node.is_recording = False
 
     sim_duration = node.sim_time_end - node.sim_time_start
     wall_duration = node.wall_time_end - node.wall_time_start
@@ -324,7 +389,7 @@ def run_audit(target_sim_duration: float = 25.0):
     # 1. Analyze Minimal Counter Data
     minimal_records = node.minimal_cam_records
     source_count = len(minimal_records)
-    evaluator_count = len(node.evaluator_samples)
+    evaluator_count = len(node.evaluator_frame_records)
 
     stamps = [r['timestamp'] for r in minimal_records]
     if len(stamps) > 1:
@@ -345,16 +410,20 @@ def run_audit(target_sim_duration: float = 25.0):
 
     # 2. Analyze Evaluator & YOLO Samples
     eval_samples = node.evaluator_samples
-    processed_frames = sum(1 for s in eval_samples if s.get('is_processed', False))
-    unprocessed_frames = sum(1 for s in eval_samples if s.get('unprocessed', False))
-    det_with_person = sum(1 for s in eval_samples if s.get('detection_present', False))
-    det_without_person = sum(1 for s in eval_samples if s.get('detector_miss', False))
-    matching_failures = sum(1 for s in eval_samples if s.get('matching_failure', False))
+    processed_frames = sum(1 for s in eval_samples if s.get('is_processed') is True)
+    processing_unknown_frames = sum(1 for s in eval_samples if s.get('is_processed') is None)
+    raw_known = [s for s in eval_samples if s.get('raw_detection_available')]
+    raw_with_person = sum(1 for s in raw_known if s.get('raw_detection_present') is True)
+    raw_without_person = sum(1 for s in raw_known if s.get('raw_detection_present') is False)
+    tracking_known = [s for s in eval_samples if s.get('tracking_output_available')]
+    det_with_person = sum(1 for s in tracking_known if s.get('detection_present') is True)
+    tracking_without_output = sum(1 for s in tracking_known if s.get('detection_present') is False)
+    matching_timeouts = sum(1 for s in eval_samples if s.get('matching_timeout'))
 
     coverage_on_evaluator_pct = (processed_frames / evaluator_count * 100.0) if evaluator_count > 0 else 0.0
     coverage_on_source_pct = (processed_frames / source_count * 100.0) if source_count > 0 else 0.0
-    person_ratio_on_processed_pct = (det_with_person / processed_frames * 100.0) if processed_frames > 0 else 0.0
-    person_ratio_on_eval_stream_pct = (det_with_person / evaluator_count * 100.0) if evaluator_count > 0 else 0.0
+    person_ratio_on_processed_pct = (raw_with_person / len(raw_known) * 100.0) if raw_known else 0.0
+    person_ratio_on_eval_stream_pct = (det_with_person / len(tracking_known) * 100.0) if tracking_known else 0.0
     person_ratio_on_source_pct = (det_with_person / source_count * 100.0) if source_count > 0 else 0.0
 
     latencies = [s['processing_latency_ms'] for s in eval_samples if s.get('processing_latency_ms') is not None]
@@ -372,17 +441,22 @@ def run_audit(target_sim_duration: float = 25.0):
     yolo_processing_hz_wall = processed_frames / wall_duration if wall_duration > 0 else 0.0
 
     # 3. Check Exact Timestamp Matching between Camera Stamps and YOLO Dets
-    cam_stamp_keys = set((r['stamp_sec'], r['stamp_nsec']) for r in minimal_records)
-    det_stamp_keys = set((r['stamp_sec'], r['stamp_nsec']) for r in node.raw_detections_records)
+    cam_stamp_keys = set(r['stamp_key'] for r in minimal_records)
+    det_stamp_keys = set(r['stamp_key'] for r in node.raw_detections_records)
     exact_matches = len(cam_stamp_keys.intersection(det_stamp_keys))
     orphan_detections = len(det_stamp_keys - cam_stamp_keys)
+    complete_matches = sum(1 for s in eval_samples if s.get('match_complete'))
 
     # 4. Save CSV
     csv_file = os.path.join(RESULTS_DIR, 'fps_frame_accounting_samples.csv')
     fieldnames = [
-        'test_name', 'timestamp', 'camera_frame_index', 'is_processed',
-        'detection_present', 'detector_miss', 'unprocessed', 'matching_failure',
-        'processing_latency_ms', 'track_present', 'track_id', 'detection_confidence',
+        'test_name', 'timestamp', 'camera_frame_index', 'source_stamp_sec', 'source_stamp_nanosec',
+        'match_status', 'match_complete', 'matching_timeout', 'matching_incomplete', 'is_processed',
+        'raw_detection_available', 'raw_detection_present', 'raw_detection_count',
+        'tracking_output_available', 'detection_present', 'detector_miss', 'tracking_miss',
+        'processing_duration_available', 'actual_processing_latency_ms', 'processing_latency_ms',
+        'yolo_latency_ms', 'tracker_latency_ms', 'transport_callback_skew_ms',
+        'unprocessed', 'matching_failure', 'track_present', 'track_id', 'detection_confidence',
         'uav_x', 'uav_y', 'uav_z'
     ]
     with open(csv_file, 'w', newline='') as f:
@@ -395,16 +469,19 @@ def run_audit(target_sim_duration: float = 25.0):
     # 5. Build Final JSON Results
     results_data = {
         'metadata': {
+            'requested_duration_sec': target_sim_duration,
+            'actual_duration_sec': float(round(sim_duration, 4)),
             'target_sim_duration_sec': target_sim_duration,
             'sim_duration_sec': float(round(sim_duration, 4)),
             'wall_duration_sec': float(round(wall_duration, 4)),
+            'completion_reason': completion_reason,
             'real_time_factor': float(round(rtf, 4)),
             'camera_configured_rate_hz': 30.0
         },
         'source_camera': {
-            'frame_count': source_count,
-            'source_rate_sim_hz': float(round(source_hz_sim, 2)),
-            'source_rate_wall_hz': float(round(source_hz_wall, 2)),
+            'minimal_subscriber_observed_frames': source_count,
+            'observed_source_rate_sim_hz': float(round(source_hz_sim, 2)),
+            'observed_source_rate_wall_hz': float(round(source_hz_wall, 2)),
             'first_stamp': float(stamps[0]) if stamps else 0.0,
             'last_stamp': float(stamps[-1]) if stamps else 0.0,
             'stamp_period_stats_sec': {
@@ -420,15 +497,19 @@ def run_audit(target_sim_duration: float = 25.0):
             'received_frame_count': evaluator_count,
             'receive_rate_sim_hz': float(round(evaluator_hz_sim, 2)),
             'receive_rate_wall_hz': float(round(evaluator_hz_wall, 2)),
-            'evaluator_drop_count': source_count - evaluator_count,
-            'evaluator_drop_ratio_pct': float(round(((source_count - evaluator_count) / source_count * 100.0) if source_count > 0 else 0.0, 2))
+            'minimal_minus_evaluator_subscriber_observed_frames': source_count - evaluator_count,
+            'subscriber_stamp_unmatched_frames': len(
+                set(r['stamp_key'] for r in minimal_records)
+                - set(r['stamp_key'] for r in node.evaluator_frame_records)
+            )
         },
         'yolo_pipeline': {
-            'total_detections_published': node.total_detections_received,
-            'frames_processed': processed_frames,
-            'frames_dropped_busy_queue': unprocessed_frames,
+            'raw_detection_messages_received': len(node.raw_detections_records),
+            'tracking_messages_received': node.tracking_messages_received,
+            'frames_with_processing_duration': processed_frames,
+            'processing_telemetry_unknown_frames': processing_unknown_frames,
             'coverage_on_evaluator_received_pct': float(round(coverage_on_evaluator_pct, 2)),
-            'coverage_on_source_published_pct': float(round(coverage_on_source_pct, 2)),
+            'coverage_on_minimal_subscriber_observed_frames_pct': float(round(coverage_on_source_pct, 2)),
             'processing_rate_sim_hz': float(round(yolo_processing_hz_sim, 2)),
             'processing_rate_wall_hz': float(round(yolo_processing_hz_wall, 2)),
             'latency_ms': {
@@ -440,17 +521,22 @@ def run_audit(target_sim_duration: float = 25.0):
             }
         },
         'detection_breakdown': {
-            'processed_with_person': det_with_person,
-            'processed_without_person_len0': det_without_person,
-            'matching_failures': matching_failures,
+            'raw_messages_with_person': raw_with_person,
+            'raw_messages_without_person': raw_without_person,
+            'raw_telemetry_unknown_frames': len(eval_samples) - len(raw_known),
+            'tracking_output_frames_with_target': det_with_person,
+            'tracking_output_frames_without_target': tracking_without_output,
+            'tracking_output_unknown_frames': len(eval_samples) - len(tracking_known),
+            'matching_timeouts': matching_timeouts,
+            'complete_source_stamp_matches': complete_matches,
             'person_detections_among_processed_frames_pct': float(round(person_ratio_on_processed_pct, 2)),
             'person_detections_among_evaluator_stream_pct': float(round(person_ratio_on_eval_stream_pct, 2)),
-            'person_detections_among_source_stream_pct': float(round(person_ratio_on_source_pct, 2))
+            'person_detections_among_minimal_subscriber_observations_pct': float(round(person_ratio_on_source_pct, 2))
         },
         'timestamp_matching_verification': {
             'exact_matches': exact_matches,
-            'orphan_detections': orphan_detections,
-            'matching_rate_pct': float(round((exact_matches / node.total_detections_received * 100.0) if node.total_detections_received > 0 else 100.0, 2))
+            'raw_messages_unmatched_to_minimal_subscriber_stamps': orphan_detections,
+            'matching_rate_pct': float(round((exact_matches / len(node.raw_detections_records) * 100.0) if node.raw_detections_records else 0.0, 2))
         }
     }
 
@@ -463,13 +549,14 @@ def run_audit(target_sim_duration: float = 25.0):
     print("\n" + "=" * 90)
     print(f"{'STAGE':<35} | {'COUNT':<10} | {'RATE (SIM)':<15} | {'RATE (WALL)':<15}")
     print("=" * 90)
-    print(f"{'1. Camera Source Published':<35} | {source_count:10d} | {source_hz_sim:13.2f} Hz | {source_hz_wall:13.2f} Hz")
+    print(f"{'1. Minimal Subscriber Observed':<35} | {source_count:10d} | {source_hz_sim:13.2f} Hz | {source_hz_wall:13.2f} Hz")
     print(f"{'2. Evaluator Received':<35} | {evaluator_count:10d} | {evaluator_hz_sim:13.2f} Hz | {evaluator_hz_wall:13.2f} Hz")
     print(f"{'3. YOLO Processed':<35} | {processed_frames:10d} | {yolo_processing_hz_sim:13.2f} Hz | {yolo_processing_hz_wall:13.2f} Hz")
-    print(f"{'4. YOLO Dropped (Busy Queue)':<35} | {unprocessed_frames:10d} | {'-':>15} | {'-':>15}")
-    print(f"{'5. Processed with Person':<35} | {det_with_person:10d} | {'-':>15} | {'-':>15}")
-    print(f"{'6. Processed without Person (len=0)':<35} | {det_without_person:10d} | {'-':>15} | {'-':>15}")
-    print(f"{'7. Matching Failure':<35} | {matching_failures:10d} | {'-':>15} | {'-':>15}")
+    print(f"{'4. Frames with Processing Duration':<35} | {processed_frames:10d} | {'-':>15} | {'-':>15}")
+    print(f"{'5. Processing Telemetry Unknown':<35} | {processing_unknown_frames:10d} | {'-':>15} | {'-':>15}")
+    print(f"{'6. Raw Detector Saw Person':<35} | {raw_with_person:10d} | {'-':>15} | {'-':>15}")
+    print(f"{'7. Raw Detector Saw None':<35} | {raw_without_person:10d} | {'-':>15} | {'-':>15}")
+    print(f"{'8. Incomplete Matching Timeout':<35} | {matching_timeouts:10d} | {'-':>15} | {'-':>15}")
     print("=" * 90)
 
     print("\n" + "=" * 90)
@@ -480,10 +567,10 @@ def run_audit(target_sim_duration: float = 25.0):
     print(f"{'Real-Time Factor (RTF)':<45} : {rtf:.3f} ({rtf*100:.1f}% real-time speed)")
     print(f"{'Camera Configured Rate':<45} : 30.0 Hz")
     print(f"{'Effective Source Rate (1 / median dt)':<45} : {effective_source_hz:.2f} Hz (Median dt: {median_period*1000:.1f} ms)")
-    print(f"{'Evaluator vs Source Loss':<45} : {source_count - evaluator_count} frames ({((source_count - evaluator_count)/source_count*100.0) if source_count > 0 else 0.0:.2f}%)")
-    print(f"{'Person Detections among Processed Frames':<45} : {person_ratio_on_processed_pct:.1f}% ({det_with_person}/{processed_frames})")
+    print(f"{'Minimal minus Evaluator Subscriber Observations':<45} : {source_count - evaluator_count}")
+    print(f"{'Raw Person Ratio among Available Raw Messages':<45} : {person_ratio_on_processed_pct:.1f}% ({raw_with_person}/{len(raw_known)})")
     print(f"{'YOLO Coverage on Evaluator Stream':<45} : {coverage_on_evaluator_pct:.1f}% ({processed_frames}/{evaluator_count})")
-    print(f"{'YOLO Coverage on Camera Source':<45} : {coverage_on_source_pct:.1f}% ({processed_frames}/{source_count})")
+    print(f"{'Processing Telemetry on Minimal Subscriber Set':<45} : {coverage_on_source_pct:.1f}% ({processed_frames}/{source_count})")
     print(f"{'Median Processing Latency':<45} : {med_lat:.1f} ms" if med_lat is not None else f"{'Median Processing Latency':<45} : N/A")
     print(f"{'95th Percentile Processing Latency':<45} : {p95_lat:.1f} ms" if p95_lat is not None else f"{'95th Percentile Processing Latency':<45} : N/A")
     print("=" * 90 + "\n")

@@ -232,7 +232,8 @@ echo "      Model '${GZ_MODEL}' verified."
 # 3. Start ROS-Gazebo Parameter Bridge
 # ------------------------------------------------------------------------------
 echo "[3/4] Starting ROS-Gazebo parameter bridge..."
-ros2 run ros_gz_bridge parameter_bridge \
+env FASTRTPS_DEFAULT_PROFILES_FILE="${FASTDDS_DEFAULT_PROFILES_FILE:-${FASTRTPS_DEFAULT_PROFILES_FILE:-${PROJECT_DIR}/src/uav_perception/config/fastdds_images.xml}}" \
+    ros2 run ros_gz_bridge parameter_bridge \
     --ros-args -p config_file:="${BRIDGE_CONFIG}" > /dev/null 2>&1 &
 BRIDGE_PID=$!
 PIDS+=("${BRIDGE_PID}")
@@ -243,14 +244,16 @@ if ! kill -0 "${BRIDGE_PID}" 2>/dev/null; then
     exit 1
 fi
 
-echo "      Waiting for camera topic on ROS 2 (/custom_x500/camera/image_raw)..."
+echo "      Waiting for ROS simulation clock and camera topics..."
 BRIDGE_TIMEOUT=15
 while [ ${BRIDGE_TIMEOUT} -gt 0 ]; do
     if ! kill -0 "${BRIDGE_PID}" 2>/dev/null; then
         echo "ERROR: ROS-Gazebo bridge process exited unexpectedly."
         exit 1
     fi
-    if ros2 topic list 2>/dev/null | grep -q "/custom_x500/camera/image_raw"; then
+    ROS_TOPICS="$(ros2 topic list 2>/dev/null || true)"
+    if grep -qx "/clock" <<<"${ROS_TOPICS}" \
+       && grep -qx "/custom_x500/camera/image_raw" <<<"${ROS_TOPICS}"; then
         break
     fi
     sleep 1
@@ -261,7 +264,7 @@ if [ ${BRIDGE_TIMEOUT} -eq 0 ]; then
     echo "ERROR: Timed out waiting for ROS-Gazebo bridge topics."
     exit 1
 fi
-echo "      ROS-Gazebo bridge is ready."
+echo "      ROS-Gazebo bridge is ready; /clock and camera topics are available."
 
 # ------------------------------------------------------------------------------
 # 4. Configure PX4 SITL Environment
@@ -307,7 +310,7 @@ if [ "$AUTO_OFFBOARD" = true ]; then
 
     echo "========================================================="
     echo " Starting Offboard Altitude Control node (Target: ${TARGET_ALT} m)..."
-    echo " Press Ctrl+C at any time to land and terminate."
+    echo " Press Ctrl+C to stop the simulation processes."
     echo "========================================================="
     ros2 run uav_control altitude_control --ros-args -p target_altitude_m:="${TARGET_ALT}"
 

@@ -1,4 +1,11 @@
 # ROS 2 <-> Gazebo Harmonic Bridge Configuration for Phase 3
+# Gazebo simulation time must share its epoch with perception image stamps.
+- ros_topic_name: "/clock"
+  gz_topic_name: "/world/gimbal_test/clock"
+  ros_type_name: "rosgraph_msgs/msg/Clock"
+  gz_type_name: "gz.msgs.Clock"
+  direction: GZ_TO_ROS
+
 # Camera Topics
 - ros_topic_name: "/custom_x500/camera/image_raw"
   gz_topic_name: "/custom_x500/camera/image_raw"

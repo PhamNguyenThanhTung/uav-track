@@ -8,7 +8,7 @@ This document provides a concise, high-level description of the UAV simulation p
 
 The primary goal of this project is to develop and validate an autonomous UAV simulation platform capable of:
 1. Simulating a multicopter with a 3-DOF stabilized gimbal and downward-facing camera.
-2. Running real-time computer vision detection (YOLO26n) and tracking (DeepSORT).
+2. Running real-time computer vision detection (YOLO26n) and tracking (BoT-SORT with ORB GMC and pretrained ReID).
 3. Performing closed-loop visual servoing to maintain ground targets within camera view.
 4. Progressing incrementally toward full autonomous target-following flight control.
 5. Maintaining strict architectural boundaries to facilitate seamless transfer to physical drone hardware in future phases.
@@ -28,7 +28,7 @@ The primary goal of this project is to develop and validate an autonomous UAV si
 | **Python Environment** | Python 3.12.3 virtualenv | Located at `software/venvs/yolo26` |
 | **Deep Learning** | PyTorch 2.14.0+cu130 | CUDA acceleration on NVIDIA RTX 4060 GPU |
 | **Object Detection** | Ultralytics YOLO26n | Model `yolo26n.pt` (Class 0: person, 640px) |
-| **Multi-Object Tracker**| `deep_sort_realtime` | Cosine metric Re-ID, `max_age=30`, `n_init=1` |
+| **Multi-Object Tracker**| Ultralytics BoT-SORT 8.4.164 | ORB GMC, `yolo26n-reid.onnx` via ONNX Runtime CUDA, upstream association defaults in `src/uav_perception/config/botsort.yaml` |
 
 ---
 
@@ -50,9 +50,11 @@ Perception and body flight control currently operate as **two decoupled subsyste
                            ▼
 [ uav_perception : yolo_detector ]
    ├── YOLO26n (GPU Detection)
-   ├── DeepSORT (Tracking & Re-ID)
-   ├── Target Selection (Active Track Matching)
-   └── Gimbal Visual Servoing (P-Controller with Deadband & Rate Limits)
+   ├── BoT-SORT (Kalman + IoU / appearance association)
+   │    ├── ORB global motion compensation
+   │    └── pretrained ONNX Re-ID embeddings (CUDA)
+   ├── TargetIdentityManager (Target Lifecycle & ID Switch Decoupling)
+   └── GimbalController (Visual Servoing P-Control with Deadband & Rate Limits)
            │
            ├──► /yolo/detections (vision_msgs/Detection2DArray)
            └──► /yolo/annotated_image (sensor_msgs/Image)
@@ -79,13 +81,13 @@ Perception and body flight control currently operate as **two decoupled subsyste
 
 ## 4. Planned Architecture Progression
 
-The following components are **PROPOSED / NOT IMPLEMENTED** and outline future development:
+Progression from current implemented modules to future flight autonomy:
 
 ```text
 Current Gimbal Tracker
        │
        ▼
-[ Target Identity Layer ]          (PROPOSED: Decouple track_id from target identity)
+[ Target Identity Layer ]          (IMPLEMENTED in source: Decouples track_id from target identity; unit-tested)
        │
        ▼
 [ Target 3D State Estimator ]      (PROPOSED: Estimate ground position from pixel + gimbal + altitude)

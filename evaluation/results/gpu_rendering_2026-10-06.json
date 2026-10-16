@@ -1,0 +1,146 @@
+{
+  "date": "2026-10-06",
+  "gpu": "NVIDIA GeForce RTX 4060 Laptop GPU",
+  "mesa": "25.2.8",
+  "wslg": "1.0.79",
+  "method": "Subscriber arrivals over 12 wall seconds after first image plus 3 second warmup; isolated Gazebo partitions and ROS domain for bridge checks. Physics/scene unchanged. No PX4 or YOLO.",
+  "uav_resolution": [
+    1280,
+    720
+  ],
+  "observer_resolution": [
+    640,
+    480
+  ],
+  "configured_camera_sim_hz": 30,
+  "baseline_measured_before_launcher_changes": true,
+  "runs": [
+    {
+      "mode": "baseline",
+      "window_wall_s": 12.000388141997973,
+      "first_frame": true,
+      "uav": {
+        "frames": 70,
+        "wall_fps": 5.833144659298123,
+        "sim_span_s": 2.2760000000000002,
+        "sim_fps": 30.316344463971877
+      },
+      "observer": {
+        "frames": 69,
+        "wall_fps": 5.74981402130815,
+        "sim_span_s": 2.244,
+        "sim_fps": 30.3030303030303
+      },
+      "mean_rtf": 0.028021667163692105,
+      "exit_before_cleanup": null,
+      "renderer_lines": [
+        "07:42:05: GL_RENDERER = llvmpipe (LLVM 20.1.2, 256 bits)",
+        "07:42:06: Device Name: llvmpipe (LLVM 20.1.2, 256 bits)"
+      ]
+    },
+    {
+      "mode": "gpu",
+      "window_wall_s": 12.000144289999298,
+      "first_frame": true,
+      "uav": {
+        "frames": 361,
+        "wall_fps": 30.08297161067062,
+        "sim_span_s": 11.88,
+        "sim_fps": 30.3030303030303
+      },
+      "observer": {
+        "frames": 362,
+        "wall_fps": 30.166303942002116,
+        "sim_span_s": 11.916,
+        "sim_fps": 30.29540114132259
+      },
+      "mean_rtf": 0.9926740051594215,
+      "exit_before_cleanup": null,
+      "renderer_lines": [
+        "07:42:37: GL_RENDERER = D3D12 (NVIDIA GeForce RTX 4060 Laptop GPU)",
+        "07:42:38: Device Name: D3D12 (NVIDIA GeForce RTX 4060 Laptop GPU)"
+      ]
+    },
+    {
+      "mode": "gui",
+      "window_wall_s": 12.000510519999807,
+      "first_frame": true,
+      "uav": {
+        "frames": 353,
+        "wall_fps": 29.41541523685158,
+        "sim_span_s": 11.616,
+        "sim_fps": 30.303030303030305
+      },
+      "observer": {
+        "frames": 353,
+        "wall_fps": 29.41541523685158,
+        "sim_span_s": 11.616,
+        "sim_fps": 30.303030303030305
+      },
+      "mean_rtf": 0.9556228987993509,
+      "exit_before_cleanup": null,
+      "renderer_lines": [
+        "07:43:40: GL_RENDERER = D3D12 (NVIDIA GeForce RTX 4060 Laptop GPU)",
+        "07:43:40: Device Name: D3D12 (NVIDIA GeForce RTX 4060 Laptop GPU)"
+      ]
+    },
+    {
+      "mode": "ros",
+      "window_wall_s": 12.000365460000467,
+      "first_frame": true,
+      "uav": {
+        "frames": 341,
+        "wall_fps": 28.415801263438084,
+        "sim_span_s": 11.22,
+        "sim_fps": 30.3030303030303
+      },
+      "observer": {
+        "frames": 342,
+        "wall_fps": 28.499132058932037,
+        "sim_span_s": 11.252,
+        "sim_fps": 30.30572342694632
+      },
+      "ros_uav": {
+        "frames": 242,
+        "wall_fps": 20.166052509536705,
+        "sim_span_s": 11.156,
+        "sim_fps": 21.60272499103621
+      },
+      "mean_rtf": 0.9271529654546257,
+      "exit_before_cleanup": null,
+      "renderer_lines": [
+        "07:44:27: GL_RENDERER = D3D12 (NVIDIA GeForce RTX 4060 Laptop GPU)",
+        "07:44:27: Device Name: D3D12 (NVIDIA GeForce RTX 4060 Laptop GPU)"
+      ]
+    },
+    {
+      "mode": "ros_reliable",
+      "window_wall_s": 12.000558174000616,
+      "first_frame": true,
+      "uav": {
+        "frames": 338,
+        "wall_fps": 28.165356569187082,
+        "sim_span_s": 11.120000000000001,
+        "sim_fps": 30.305755395683452
+      },
+      "observer": {
+        "frames": 337,
+        "wall_fps": 28.082027111881796,
+        "sim_span_s": 11.088000000000001,
+        "sim_fps": 30.3030303030303
+      },
+      "ros_uav": {
+        "frames": 337,
+        "wall_fps": 28.082027111881796,
+        "sim_span_s": 11.088000000000001,
+        "sim_fps": 30.3030303030303
+      },
+      "mean_rtf": 0.9373283729600461,
+      "exit_before_cleanup": null,
+      "renderer_lines": [
+        "07:45:49: GL_RENDERER = D3D12 (NVIDIA GeForce RTX 4060 Laptop GPU)",
+        "07:45:49: Device Name: D3D12 (NVIDIA GeForce RTX 4060 Laptop GPU)"
+      ]
+    }
+  ]
+}

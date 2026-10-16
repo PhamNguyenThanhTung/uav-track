@@ -7,6 +7,7 @@ endif()
 
 find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(rcl_interfaces REQUIRED)
 find_package(px4_msgs REQUIRED)
 
 add_executable(altitude_control src/altitude_control.cpp)
@@ -16,6 +17,7 @@ target_include_directories(altitude_control PUBLIC
 target_compile_features(altitude_control PUBLIC c_std_99 cxx_std_17)
 ament_target_dependencies(altitude_control
   rclcpp
+  rcl_interfaces
   px4_msgs
 )
 
@@ -27,6 +29,20 @@ install(TARGETS
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
+
+  find_package(ament_cmake_gtest REQUIRED)
+  ament_add_gtest(test_altitude_control test/test_altitude_control.cpp)
+  if(TARGET test_altitude_control)
+    target_include_directories(test_altitude_control PUBLIC
+      $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+      $<INSTALL_INTERFACE:include>)
+    target_compile_features(test_altitude_control PUBLIC c_std_99 cxx_std_17)
+    ament_target_dependencies(test_altitude_control
+      rclcpp
+      rcl_interfaces
+      px4_msgs
+    )
+  endif()
 endif()
 
 ament_package()

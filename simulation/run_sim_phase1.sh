@@ -4,6 +4,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+source "${PROJECT_DIR}/config/sim/gazebo_rendering.sh"
 PX4_MODELS="${PROJECT_DIR}/../software/PX4-Autopilot/Tools/simulation/gz/models"
 CUSTOM_MODELS="${PROJECT_DIR}/simulation/models"
 

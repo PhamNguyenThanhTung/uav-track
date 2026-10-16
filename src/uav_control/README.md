@@ -10,9 +10,9 @@ It continuously streams `OffboardControlMode` and `TrajectorySetpoint` messages,
 ## Parameters
 
 - `target_altitude_m` (double, default: `2.0`): Target altitude in meters above origin.
-- `publish_rate_hz` (double, default: `10.0`): Rate at which setpoints and offboard modes are published.
+- `publish_rate_hz` (double, default: `10.0`): Rate at which setpoints and offboard modes are published. Positive finite rates with representable periods replace the active timer on its next control tick; fractional rates such as `0.5` are supported.
 
-Parameters can be set at launch or dynamically updated via `ros2 param set`.
+Parameters can be set at launch or dynamically updated via `ros2 param set`. Before requesting Offboard mode and arming, the node streams setpoints for at least one second while valid local-position telemetry remains fresh.
 
 ## Subscribed Topics
 

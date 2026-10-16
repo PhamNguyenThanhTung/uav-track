@@ -49,7 +49,7 @@ def test_detection_and_retention():
 
 
 def test_id_switch_vs_track_loss():
-    calc = TrackingMetricCalculator(track_loss_gap_thresh_s=0.10)
+    calc = TrackingMetricCalculator()
     # Scenario:
     # Frame 0..2: ID 10
     # Frame 3..5: ID 20 (immediate change, no gap) -> 1 ID switch
@@ -194,7 +194,7 @@ def test_decoupled_frame_processing_and_latencies():
     calc = TrackingMetricCalculator()
     # 10 camera frames:
     # 5 frames PROCESSED by YOLO: 4 with person, 1 detector miss (no person)
-    # 5 frames UNPROCESSED (dropped because YOLO was busy)
+    # 5 frames are known not to have a processing duration result.
     samples = []
     for i in range(10):
         t = i * 0.033
@@ -212,12 +212,17 @@ def test_decoupled_frame_processing_and_latencies():
             'timestamp': t,
             'camera_frame_index': i,
             'is_processed': is_proc,
-            'detection_present': has_person,
-            'detector_miss': is_proc and not has_person,
+            'detection_present': has_person if is_proc else None,
+            'tracking_output_available': is_proc,
+            'tracking_miss': is_proc and not has_person,
+            'raw_detection_available': False,
+            'raw_detection_present': None,
+            'detector_miss': None,
             'unprocessed': not is_proc,
             'matching_failure': False,
-            'processing_latency_ms': lat,
-            'track_present': has_person,
+            'actual_processing_latency_ms': lat,
+            'processing_latency_ms': None,
+            'track_present': has_person if is_proc else None,
             'track_id': '1' if has_person else None,
             'bbox_cx': 640.0 if has_person else None,
             'bbox_cy': 360.0 if has_person else None,
@@ -237,15 +242,143 @@ def test_decoupled_frame_processing_and_latencies():
     assert res['unprocessed_frames'] == 5
     assert math.isclose(res['processing_coverage_pct'], 50.0)
     assert res['detections_with_person'] == 4
-    assert res['detector_misses'] == 1
+    assert res['tracking_misses'] == 1
     assert res['matching_failures'] == 0
     # Processed frame person ratio: 4 / 5 = 80.0%
     assert math.isclose(res['processed_frame_person_ratio_pct'], 80.0)
-    # Camera stream person ratio: 4 / 10 = 40.0%
-    assert math.isclose(res['camera_stream_person_ratio_pct'], 40.0)
+    # The full stream ratio is unknown because five tracker outputs are unavailable.
+    assert res['camera_stream_person_ratio_pct'] is None
+    assert res['detection_rate_pct'] is None
     assert math.isclose(res['min_processing_latency_ms'], 30.0)
     assert math.isclose(res['max_processing_latency_ms'], 70.0)
     print(f"[PASS] test_decoupled_frame_processing_and_latencies passed: 50% coverage, 80% processed ratio, 40% stream ratio.")
+
+
+def test_requested_vs_actual_duration_and_reason():
+    calc = TrackingMetricCalculator()
+    # 5 frames spanning 0.0s to 1.8s (actual duration = 1.8s, but requested was 25.0s, wall timeout occurred)
+    samples = [
+        {'timestamp': 0.0, 'track_present': True, 'track_id': '1', 'error_dist': 20.0, 'gimbal_yaw': 0.0, 'gimbal_pitch': 0.35, 'uav_x': 0.0, 'uav_y': 0.0, 'uav_z': -2.0},
+        {'timestamp': 0.5, 'track_present': True, 'track_id': '1', 'error_dist': 20.0, 'gimbal_yaw': 0.0, 'gimbal_pitch': 0.35, 'uav_x': 0.0, 'uav_y': 0.0, 'uav_z': -2.0},
+        {'timestamp': 1.0, 'track_present': True, 'track_id': '1', 'error_dist': 20.0, 'gimbal_yaw': 0.0, 'gimbal_pitch': 0.35, 'uav_x': 0.0, 'uav_y': 0.0, 'uav_z': -2.0},
+        {'timestamp': 1.8, 'track_present': True, 'track_id': '1', 'error_dist': 20.0, 'gimbal_yaw': 0.0, 'gimbal_pitch': 0.35, 'uav_x': 0.0, 'uav_y': 0.0, 'uav_z': -2.0},
+    ]
+    res = calc.compute_metrics(samples, 'test_duration', duration_sec=25.0, requested_duration_sec=25.0, completion_reason='wall_timeout')
+    assert res['requested_duration_sec'] == 25.0
+    assert math.isclose(res['actual_duration_sec'], 1.8, rel_tol=1e-3)
+    assert math.isclose(res['duration_sec'], 1.8, rel_tol=1e-3)
+    assert res['completion_reason'] == 'wall_timeout'
+    print("[PASS] test_requested_vs_actual_duration_and_reason passed.")
+
+
+def test_convergence_hold_full_window_required():
+    # conv_hold_frames = 5.
+    # Error enters <= 50 at index 2 (t=0.2), but only 2 frames exist after it (indices 2 and 3).
+    # Since 2 + 5 = 7 > 4 frames total, it MUST NOT count as a convergence event.
+    calc = TrackingMetricCalculator(conv_outer_thresh=75.0, conv_inner_thresh=50.0, conv_hold_frames=5)
+    samples = [
+        {'timestamp': 0.0, 'error_dist': 120.0, 'gimbal_yaw': 0.0, 'gimbal_pitch': 0.35},
+        {'timestamp': 0.1, 'error_dist': 100.0, 'gimbal_yaw': 0.0, 'gimbal_pitch': 0.35},
+        {'timestamp': 0.2, 'error_dist': 40.0, 'gimbal_yaw': 0.0, 'gimbal_pitch': 0.35},
+        {'timestamp': 0.3, 'error_dist': 35.0, 'gimbal_yaw': 0.0, 'gimbal_pitch': 0.35},
+    ]
+    res = calc.compute_metrics(samples, 'test_conv_window', 0.4)
+    assert res['convergence_events_count'] == 0, f"Expected 0 convergence events, got {res['convergence_events_count']}"
+    assert res['mean_time_to_center_s'] is None
+    print("[PASS] test_convergence_hold_full_window_required passed.")
+
+
+def test_missing_yaw_pitch_nan_safety():
+    calc = TrackingMetricCalculator()
+    samples = [
+        {'timestamp': 0.0, 'gimbal_yaw': 0.1, 'gimbal_pitch': 0.3, 'uav_x': float('nan'), 'uav_y': 0.0, 'uav_z': -2.0},
+        {'timestamp': 0.1, 'gimbal_yaw': None, 'gimbal_pitch': float('nan'), 'uav_x': 0.0, 'uav_y': 0.0, 'uav_z': -2.0},
+        {'timestamp': 0.2, 'gimbal_yaw': 0.2, 'gimbal_pitch': 0.4, 'uav_x': 0.05, 'uav_y': 0.0, 'uav_z': -2.0},
+    ]
+    res = calc.compute_metrics(samples, 'test_nan_safety', 0.2)
+    # Must not raise IndexError or ValueError
+    assert res['maximum_yaw_rate_deg_s'] is not None
+    assert res['maximum_pitch_rate_deg_s'] is not None
+    print("[PASS] test_missing_yaw_pitch_nan_safety passed.")
+
+
+def test_raw_detector_vs_tracker_separation():
+    calc = TrackingMetricCalculator()
+    # 6 frames:
+    # Frames 0..3: raw detector found person (4 frames)
+    # Frame 4..5: raw detector found no person (2 frames)
+    # Tracker only tracked frames 0..2 (3 frames, because frame 3 was unconfirmed/lost)
+    samples = []
+    for i in range(6):
+        raw_det = i < 4
+        tracked = i < 3
+        samples.append({
+            'timestamp': i * 0.1,
+            'is_processed': True,
+            'raw_detection_present': raw_det,
+            'detection_present': tracked,
+            'track_present': tracked,
+            'track_id': '1' if tracked else None,
+            'error_dist': 10.0 if tracked else None,
+            'gimbal_yaw': 0.0,
+            'gimbal_pitch': 0.35
+        })
+    res = calc.compute_metrics(samples, 'test_raw_sep', 0.6)
+    assert res['raw_detector_telemetry_available'] is True
+    assert res['raw_detections_with_person'] == 4
+    assert res['raw_detector_misses'] == 2
+    assert math.isclose(res['raw_detection_rate_pct'], (4 / 6) * 100.0, abs_tol=0.01)
+    assert res['frames_with_valid_track'] == 3
+    assert res['tracker_unconfirmed_frames'] == 1  # Frame 3 had raw person, but no tracker
+    print("[PASS] test_raw_detector_vs_tracker_separation passed.")
+
+
+def test_actual_processing_latency_telemetry():
+    calc = TrackingMetricCalculator()
+    samples = [
+        {'timestamp': 0.0, 'actual_processing_latency_ms': 22.5, 'processing_latency_ms': -120.0},
+        {'timestamp': 0.1, 'actual_processing_latency_ms': 24.5, 'processing_latency_ms': 350.0},
+        {'timestamp': 0.2, 'actual_processing_latency_ms': 26.5, 'processing_latency_ms': 45.0},
+    ]
+    res = calc.compute_metrics(samples, 'test_actual_lat', 0.2)
+    assert res['processing_duration_telemetry_available'] is True
+    assert math.isclose(res['mean_actual_processing_latency_ms'], 24.5)
+    # When actual duration is present, min/med/mean/max should reflect actual processing duration
+    assert math.isclose(res['mean_processing_latency_ms'], 24.5)
+    assert math.isclose(res['min_processing_latency_ms'], 22.5)
+    assert math.isclose(res['max_processing_latency_ms'], 26.5)
+    print("[PASS] test_actual_processing_latency_telemetry passed.")
+
+
+def test_slow_camera_gaps_do_not_infer_target_loss():
+    calc = TrackingMetricCalculator()
+    samples = [
+        {'timestamp': t, 'tracking_output_available': True, 'track_present': True,
+         'track_id': 'target-1', 'gimbal_yaw': 0.0, 'gimbal_pitch': 0.35}
+        for t in (0.0, 0.4, 0.8)
+    ]
+    result = calc.compute_metrics(samples, 'slow_camera', duration_sec=0.8)
+
+    assert result['track_retention_pct'] == 100.0
+    assert result['track_losses'] == 0
+    assert result['track_reacquisitions'] == 0
+
+
+def test_one_sample_keeps_explicit_actual_duration_and_reason():
+    calc = TrackingMetricCalculator()
+    result = calc.compute_metrics(
+        [{'timestamp': 2.0, 'tracking_output_available': True, 'track_present': True,
+          'track_id': 'target-1'}],
+        'one_sample',
+        duration_sec=25.0,
+        requested_duration_sec=25.0,
+        actual_duration_sec=0.25,
+        completion_reason='interrupted',
+    )
+
+    assert result['requested_duration_sec'] == 25.0
+    assert result['actual_duration_sec'] == 0.25
+    assert result['completion_reason'] == 'interrupted'
 
 
 if __name__ == '__main__':
@@ -258,6 +391,13 @@ if __name__ == '__main__':
     test_yaw_wraparound_and_rates()
     test_missing_data_integrity()
     test_decoupled_frame_processing_and_latencies()
+    test_requested_vs_actual_duration_and_reason()
+    test_convergence_hold_full_window_required()
+    test_missing_yaw_pitch_nan_safety()
+    test_raw_detector_vs_tracker_separation()
+    test_actual_processing_latency_telemetry()
+    test_slow_camera_gaps_do_not_infer_target_loss()
+    test_one_sample_keeps_explicit_actual_duration_and_reason()
     print("=" * 60)
     print("ALL SYNTHETIC / UNIT TESTS PASSED WITH 100% SUCCESS!")
     print("=" * 60)

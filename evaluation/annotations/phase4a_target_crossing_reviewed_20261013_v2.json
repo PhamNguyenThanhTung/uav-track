@@ -1,0 +1,37 @@
+{
+  "annotations": "evaluation/annotations/phase4a_target_crossing_reviewed_20261013_v2.csv",
+  "sha256": "bd7909f9c33e03eb4a2971f2a70ac5863e8e041a13ca65a68fd32b6975254337",
+  "labeled_frames": 215,
+  "clear_frames": 176,
+  "ambiguous_frames": 39,
+  "sampling": "Every frame in all five windows; 215 frames total",
+  "target": "Red/burgundy actor visually anchored at source frame 3; production enrollment frame recorded by replay",
+  "protocol": "Raw MP4 + anonymous YOLO detection indices only. No track IDs, selected bboxes, HSV scores or guard outputs used to assign the target. Fullbox contamination is reference quality, distinct from visually unique bbox body owner.",
+  "labeler": "Codex raw-only visual review; user independent final review pending",
+  "split": "B/C/D1/D2 development; D3 event-held-out in same capture. D3 reviewed raw-only before current output opened; previous final5 D3 output was all LOST. Not capture-held-out.",
+  "capture_sha256": {
+    "raw_camera.mp4": "09dc9be3a936d0a33d9e73ea5cc910b231078e19ede45e1cbf233671e4fbc65c",
+    "detections.csv": "a50bef8b3a49c7f1a62af0ed24fe4d86bd611b4cde5ab70b698489bcb2f45da1",
+    "frames.csv": "7aff2ed4327141d4b115dd9e8abda7853f53322132bec24fc7d85203b82854d9"
+  },
+  "review_map_sha256": "9d11ae40b5d15894393ef2253c2d3e44ebc2afe9c6c4f84eacb9789157eaf564",
+  "review_sheets": {
+    "evaluation/annotations/raw_review_20261013_v2/B_537_545.jpg": "3cc4596afda0245c2c39631c855f4170bd434f7a12728ced870f9ae7a421f7ae",
+    "evaluation/annotations/raw_review_20261013_v2/B_521_536.jpg": "81052359c9bb71374a1a3a034401c97a31a16d5fff0d1112914ffba2751facf8",
+    "evaluation/annotations/raw_review_20261013_v2/D3_1300_1302.jpg": "1bef6f14889be756c812b94fdf6c62ec3da6b5310094a16c284e5bb24cef0fe2",
+    "evaluation/annotations/raw_review_20261013_v2/D2_1184_1186.jpg": "8c8502ae9966044f2d56f6eb19aed41551fc18f6fa35feb1b02a56be0e0f0557",
+    "evaluation/annotations/raw_review_20261013_v2/C_953_968.jpg": "5334b7eff792bc7b9fc61f166873b572491c85897a8b89245dac74b26b212b8b",
+    "evaluation/annotations/raw_review_20261013_v2/D2_1136_1151.jpg": "b6319d802a0df7cd625a24f3bf907e036bef64deda55083009b9e23ddfe0a203",
+    "evaluation/annotations/raw_review_20261013_v2/D2_1152_1167.jpg": "d4cac77c285035727d99b7b1803bfe70670a45842336d9699e6a22760d3c9f09",
+    "evaluation/annotations/raw_review_20261013_v2/B_505_520.jpg": "5eeb6ed3fb950f6a792e868d97fc40b2ea2ffb5466bfbeb119070f9ef9315590",
+    "evaluation/annotations/raw_review_20261013_v2/D2_1120_1135.jpg": "49df38dfc9929c038468530a27f1a0c898b8994834119327b604307302234109",
+    "evaluation/annotations/raw_review_20261013_v2/D3_1284_1299.jpg": "8135a9371d8bf5c69a7c9dc65f6e4c88c941c814cc2d657421a977c95c4ff79e",
+    "evaluation/annotations/raw_review_20261013_v2/C_937_952.jpg": "19e269b6468750030fa1eefe3e9f4dc77c623b1b9f7d062f3a72c779f816537f",
+    "evaluation/annotations/raw_review_20261013_v2/C_969_977.jpg": "eaba98746f8d6d271113731dddd862702589f8f36c943c11341da89a004ff024",
+    "evaluation/annotations/raw_review_20261013_v2/D1_1096_1110.jpg": "f34dd362153031cb1e2feb1df89429bec263037a12623a970ae7ebb9dc6ba5f6",
+    "evaluation/annotations/raw_review_20261013_v2/D1_1080_1095.jpg": "7e5713bab8629c9f543cebce4247c858bb982d2693e4d98a9f9dc1ca155dc27a",
+    "evaluation/annotations/raw_review_20261013_v2/D3_1268_1283.jpg": "36dcd4c6abe81195cef15291bcd84ac12c28741beabd357973a3eafe58e30213",
+    "evaluation/annotations/raw_review_20261013_v2/D2_1168_1183.jpg": "3f565cc947304eb5404160e810783c9a26fe31ca0a685b553762f5626f2ea4f9"
+  },
+  "changes_from_v1": "Continuous labels added. Several obvious target-owned crops within crossing labeled clear despite limb/fullbbox overlap. V1 retained unchanged; no gate relaxation."
+}

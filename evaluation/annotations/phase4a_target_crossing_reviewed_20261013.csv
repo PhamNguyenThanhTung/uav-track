@@ -1,0 +1,151 @@
+frame,sim_time_s,event_id,event_role,target_visible,expected_action,target_detection_index,x1,y1,x2,y2,annotation_basis
+505,66.828000000,B_two_person_crossing_505_545,development,true,confirm_target,1,511.27,213.54,630.64,520.31,unique burgundy target candidate in raw frame
+506,66.860000000,B_two_person_crossing_505_545,development,true,confirm_target,1,500.78,215.67,641.61,524.47,unique burgundy target candidate in raw frame
+507,67.060000000,B_two_person_crossing_505_545,development,true,confirm_target,0,502.41,211.23,649.02,521.41,unique burgundy target candidate in raw frame
+508,67.124000000,B_two_person_crossing_505_545,development,true,confirm_target,0,520.42,211.87,649.07,514.70,unique burgundy target candidate in raw frame
+509,67.192000000,B_two_person_crossing_505_545,development,true,confirm_target,1,540.63,213.14,634.46,514.62,unique burgundy target candidate in raw frame
+510,67.288000000,B_two_person_crossing_505_545,development,true,confirm_target,1,558.68,210.41,646.04,501.41,unique burgundy target candidate in raw frame
+511,67.324000000,B_two_person_crossing_505_545,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+512,67.356000000,B_two_person_crossing_505_545,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+513,67.420000000,B_two_person_crossing_505_545,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+514,67.456000000,B_two_person_crossing_505_545,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+515,67.488000000,B_two_person_crossing_505_545,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+516,67.652000000,B_two_person_crossing_505_545,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+517,67.720000000,B_two_person_crossing_505_545,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+518,67.784000000,B_two_person_crossing_505_545,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+519,67.852000000,B_two_person_crossing_505_545,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+520,67.884000000,B_two_person_crossing_505_545,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+521,67.948000000,B_two_person_crossing_505_545,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+522,67.984000000,B_two_person_crossing_505_545,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+523,68.116000000,B_two_person_crossing_505_545,development,true,confirm_target,0,602.93,203.24,741.39,482.40,unique burgundy target candidate in raw frame
+524,68.248000000,B_two_person_crossing_505_545,development,true,confirm_target,1,622.21,200.54,737.76,498.83,unique burgundy target candidate in raw frame
+525,68.312000000,B_two_person_crossing_505_545,development,true,confirm_target,0,629.12,199.47,722.01,506.59,unique burgundy target candidate in raw frame
+526,68.344000000,B_two_person_crossing_505_545,development,true,confirm_target,0,636.44,197.19,719.06,503.22,unique burgundy target candidate in raw frame
+527,68.380000000,B_two_person_crossing_505_545,development,true,confirm_target,1,646.36,196.56,729.88,502.58,unique burgundy target candidate in raw frame
+528,68.412000000,B_two_person_crossing_505_545,development,true,confirm_target,1,643.96,193.37,736.48,501.30,unique burgundy target candidate in raw frame
+529,68.512000000,B_two_person_crossing_505_545,development,true,confirm_target,1,623.73,196.91,761.30,501.78,unique burgundy target candidate in raw frame
+530,68.576000000,B_two_person_crossing_505_545,development,true,confirm_target,1,621.21,201.02,770.71,499.78,unique burgundy target candidate in raw frame
+531,68.644000000,B_two_person_crossing_505_545,development,true,confirm_target,1,606.82,199.68,779.91,497.17,unique burgundy target candidate in raw frame
+532,68.676000000,B_two_person_crossing_505_545,development,true,confirm_target,1,614.49,198.82,781.60,497.76,unique burgundy target candidate in raw frame
+533,68.740000000,B_two_person_crossing_505_545,development,true,confirm_target,1,622.98,197.69,785.25,500.01,unique burgundy target candidate in raw frame
+534,68.776000000,B_two_person_crossing_505_545,development,true,confirm_target,1,642.00,197.81,779.72,502.37,unique burgundy target candidate in raw frame
+535,68.840000000,B_two_person_crossing_505_545,development,true,confirm_target,2,661.89,198.58,768.60,504.08,unique burgundy target candidate in raw frame
+536,68.872000000,B_two_person_crossing_505_545,development,true,confirm_target,2,673.77,196.60,766.09,506.90,unique burgundy target candidate in raw frame
+537,68.940000000,B_two_person_crossing_505_545,development,true,confirm_target,1,695.05,194.61,770.37,507.75,unique burgundy target candidate in raw frame
+538,68.972000000,B_two_person_crossing_505_545,development,true,confirm_target,1,688.62,195.25,774.42,505.61,unique burgundy target candidate in raw frame
+539,69.004000000,B_two_person_crossing_505_545,development,true,confirm_target,1,678.52,194.26,778.16,507.40,unique burgundy target candidate in raw frame
+540,69.072000000,B_two_person_crossing_505_545,development,true,confirm_target,1,661.06,196.97,794.75,509.34,unique burgundy target candidate in raw frame
+541,69.104000000,B_two_person_crossing_505_545,development,true,confirm_target,1,657.68,197.33,799.39,508.95,unique burgundy target candidate in raw frame
+542,69.136000000,B_two_person_crossing_505_545,development,true,confirm_target,1,653.02,196.71,802.14,508.64,unique burgundy target candidate in raw frame
+543,69.172000000,B_two_person_crossing_505_545,development,true,confirm_target,0,647.29,196.94,810.93,508.26,unique burgundy target candidate in raw frame
+544,69.204000000,B_two_person_crossing_505_545,development,true,confirm_target,0,641.89,197.07,819.17,509.22,unique burgundy target candidate in raw frame
+545,69.304000000,B_two_person_crossing_505_545,development,true,confirm_target,0,667.32,200.51,824.78,505.53,unique burgundy target candidate in raw frame
+937,94.744000000,C_three_person_crossing_937_977,development,true,confirm_target,2,666.60,219.11,766.40,529.00,unique burgundy target candidate in raw frame
+938,94.780000000,C_three_person_crossing_937_977,development,true,confirm_target,1,678.64,217.62,765.71,531.98,unique burgundy target candidate in raw frame
+939,94.812000000,C_three_person_crossing_937_977,development,true,confirm_target,0,685.63,218.07,762.70,528.03,unique burgundy target candidate in raw frame
+940,94.944000000,C_three_person_crossing_937_977,development,true,confirm_target,0,639.69,218.65,775.19,532.61,unique burgundy target candidate in raw frame
+941,94.976000000,C_three_person_crossing_937_977,development,true,confirm_target,0,631.91,218.49,776.94,531.75,unique burgundy target candidate in raw frame
+942,95.044000000,C_three_person_crossing_937_977,development,true,confirm_target,0,616.83,218.77,774.09,530.76,unique burgundy target candidate in raw frame
+943,95.076000000,C_three_person_crossing_937_977,development,true,confirm_target,0,612.89,219.50,776.63,533.12,unique burgundy target candidate in raw frame
+944,95.140000000,C_three_person_crossing_937_977,development,true,confirm_target,0,617.13,220.41,775.75,532.52,unique burgundy target candidate in raw frame
+945,95.308000000,C_three_person_crossing_937_977,development,true,confirm_target,1,630.95,217.62,725.24,531.26,unique burgundy target candidate in raw frame
+946,95.340000000,C_three_person_crossing_937_977,development,true,confirm_target,0,632.17,218.94,715.33,531.64,unique burgundy target candidate in raw frame
+947,95.372000000,C_three_person_crossing_937_977,development,true,confirm_target,1,632.72,218.82,717.33,528.59,unique burgundy target candidate in raw frame
+948,95.440000000,C_three_person_crossing_937_977,development,true,confirm_target,0,622.10,222.09,728.58,526.56,unique burgundy target candidate in raw frame
+949,95.472000000,C_three_person_crossing_937_977,development,true,confirm_target,0,609.66,220.79,735.28,528.86,unique burgundy target candidate in raw frame
+950,95.504000000,C_three_person_crossing_937_977,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+951,95.604000000,C_three_person_crossing_937_977,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+952,95.668000000,C_three_person_crossing_937_977,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+953,95.768000000,C_three_person_crossing_937_977,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+954,95.800000000,C_three_person_crossing_937_977,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+955,95.868000000,C_three_person_crossing_937_977,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+956,95.900000000,C_three_person_crossing_937_977,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+957,96.000000000,C_three_person_crossing_937_977,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+958,96.196000000,C_three_person_crossing_937_977,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+959,96.232000000,C_three_person_crossing_937_977,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+960,96.264000000,C_three_person_crossing_937_977,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+961,96.364000000,C_three_person_crossing_937_977,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+962,96.428000000,C_three_person_crossing_937_977,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+963,96.460000000,C_three_person_crossing_937_977,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+964,96.560000000,C_three_person_crossing_937_977,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+965,96.760000000,C_three_person_crossing_937_977,development,true,confirm_target,0,432.75,219.74,637.68,526.34,unique burgundy target candidate in raw frame
+966,96.792000000,C_three_person_crossing_937_977,development,true,confirm_target,0,432.09,219.98,634.42,526.81,unique burgundy target candidate in raw frame
+967,96.824000000,C_three_person_crossing_937_977,development,true,confirm_target,0,430.07,220.04,629.20,525.97,unique burgundy target candidate in raw frame
+968,96.892000000,C_three_person_crossing_937_977,development,true,confirm_target,0,435.07,220.26,614.37,525.41,unique burgundy target candidate in raw frame
+969,96.988000000,C_three_person_crossing_937_977,development,true,confirm_target,1,457.89,219.64,587.65,528.01,unique burgundy target candidate in raw frame
+970,97.056000000,C_three_person_crossing_937_977,development,true,confirm_target,2,462.89,219.75,573.60,533.25,unique burgundy target candidate in raw frame
+971,97.156000000,C_three_person_crossing_937_977,development,true,confirm_target,1,455.16,220.04,586.93,531.89,unique burgundy target candidate in raw frame
+972,97.188000000,C_three_person_crossing_937_977,development,true,confirm_target,1,452.84,219.43,578.53,533.47,unique burgundy target candidate in raw frame
+973,97.220000000,C_three_person_crossing_937_977,development,true,confirm_target,1,448.71,218.85,582.78,530.66,unique burgundy target candidate in raw frame
+974,97.288000000,C_three_person_crossing_937_977,development,true,confirm_target,2,438.07,217.54,567.98,529.27,unique burgundy target candidate in raw frame
+975,97.320000000,C_three_person_crossing_937_977,development,true,confirm_target,2,431.41,217.89,572.50,528.03,unique burgundy target candidate in raw frame
+976,97.384000000,C_three_person_crossing_937_977,development,true,confirm_target,1,424.82,218.33,577.95,526.49,unique burgundy target candidate in raw frame
+977,97.420000000,C_three_person_crossing_937_977,development,true,confirm_target,1,424.75,217.94,584.41,523.49,unique burgundy target candidate in raw frame
+1080,103.060000000,D1_repeated_crossing_1080_1110,development,true,confirm_target,0,623.45,211.50,777.57,528.01,unique burgundy target candidate in raw frame
+1082,103.192000000,D1_repeated_crossing_1080_1110,development,true,confirm_target,1,634.09,209.40,729.15,523.48,unique burgundy target candidate in raw frame
+1084,103.260000000,D1_repeated_crossing_1080_1110,development,true,confirm_target,1,646.43,208.26,727.21,521.59,unique burgundy target candidate in raw frame
+1086,103.360000000,D1_repeated_crossing_1080_1110,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1088,103.456000000,D1_repeated_crossing_1080_1110,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1090,103.524000000,D1_repeated_crossing_1080_1110,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1092,103.820000000,D1_repeated_crossing_1080_1110,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1094,104.020000000,D1_repeated_crossing_1080_1110,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1096,104.248000000,D1_repeated_crossing_1080_1110,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1098,104.348000000,D1_repeated_crossing_1080_1110,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1100,104.548000000,D1_repeated_crossing_1080_1110,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1102,104.712000000,D1_repeated_crossing_1080_1110,development,true,confirm_target,1,446.60,206.51,632.65,516.27,unique burgundy target candidate in raw frame
+1104,104.844000000,D1_repeated_crossing_1080_1110,development,true,confirm_target,0,468.31,205.46,615.84,519.74,unique burgundy target candidate in raw frame
+1106,104.944000000,D1_repeated_crossing_1080_1110,development,true,confirm_target,1,481.88,206.73,603.67,527.77,unique burgundy target candidate in raw frame
+1108,105.008000000,D1_repeated_crossing_1080_1110,development,true,confirm_target,1,476.97,206.46,610.40,528.60,unique burgundy target candidate in raw frame
+1110,105.240000000,D1_repeated_crossing_1080_1110,development,true,confirm_target,1,442.05,203.11,620.50,526.59,unique burgundy target candidate in raw frame
+1120,105.768000000,D2_repeated_crossing_1120_1186,development,true,confirm_target,1,383.23,203.36,593.70,514.20,unique burgundy target candidate in raw frame
+1122,105.832000000,D2_repeated_crossing_1120_1186,development,true,confirm_target,1,386.49,203.68,597.11,514.74,unique burgundy target candidate in raw frame
+1124,105.964000000,D2_repeated_crossing_1120_1186,development,true,confirm_target,1,417.97,206.54,572.93,521.41,unique burgundy target candidate in raw frame
+1126,106.164000000,D2_repeated_crossing_1120_1186,development,true,confirm_target,0,433.04,207.59,595.85,527.00,unique burgundy target candidate in raw frame
+1128,106.264000000,D2_repeated_crossing_1120_1186,development,true,confirm_target,1,433.14,208.20,599.78,524.65,unique burgundy target candidate in raw frame
+1130,106.360000000,D2_repeated_crossing_1120_1186,development,true,confirm_target,1,425.18,206.56,604.96,526.66,unique burgundy target candidate in raw frame
+1132,106.492000000,D2_repeated_crossing_1120_1186,development,true,confirm_target,1,441.31,206.47,597.12,523.75,unique burgundy target candidate in raw frame
+1134,106.624000000,D2_repeated_crossing_1120_1186,development,true,confirm_target,0,450.67,205.68,571.70,517.32,unique burgundy target candidate in raw frame
+1136,106.724000000,D2_repeated_crossing_1120_1186,development,true,confirm_target,1,440.83,208.08,601.38,518.28,unique burgundy target candidate in raw frame
+1138,106.824000000,D2_repeated_crossing_1120_1186,development,true,confirm_target,1,424.73,209.33,616.79,516.76,unique burgundy target candidate in raw frame
+1140,106.888000000,D2_repeated_crossing_1120_1186,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1142,106.988000000,D2_repeated_crossing_1120_1186,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1144,107.088000000,D2_repeated_crossing_1120_1186,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1146,107.220000000,D2_repeated_crossing_1120_1186,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1148,107.452000000,D2_repeated_crossing_1120_1186,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1150,107.516000000,D2_repeated_crossing_1120_1186,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1152,107.648000000,D2_repeated_crossing_1120_1186,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1154,107.748000000,D2_repeated_crossing_1120_1186,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1156,107.880000000,D2_repeated_crossing_1120_1186,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1158,108.076000000,D2_repeated_crossing_1120_1186,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1160,108.276000000,D2_repeated_crossing_1120_1186,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1162,108.408000000,D2_repeated_crossing_1120_1186,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1164,108.508000000,D2_repeated_crossing_1120_1186,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1166,108.604000000,D2_repeated_crossing_1120_1186,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1168,108.704000000,D2_repeated_crossing_1120_1186,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1170,108.772000000,D2_repeated_crossing_1120_1186,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1172,108.904000000,D2_repeated_crossing_1120_1186,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1174,108.968000000,D2_repeated_crossing_1120_1186,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1176,109.100000000,D2_repeated_crossing_1120_1186,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1178,109.200000000,D2_repeated_crossing_1120_1186,development,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1180,109.300000000,D2_repeated_crossing_1120_1186,development,true,confirm_target,1,654.39,205.55,787.80,512.23,unique burgundy target candidate in raw frame
+1182,109.396000000,D2_repeated_crossing_1120_1186,development,true,confirm_target,1,691.38,206.99,778.23,517.15,unique burgundy target candidate in raw frame
+1184,109.496000000,D2_repeated_crossing_1120_1186,development,true,confirm_target,0,690.37,207.86,786.23,518.91,unique burgundy target candidate in raw frame
+1186,109.696000000,D2_repeated_crossing_1120_1186,development,true,confirm_target,0,649.71,208.10,820.61,521.11,unique burgundy target candidate in raw frame
+1268,114.712000000,D3_repeated_crossing_1268_1302,held_out,true,confirm_target,1,411.44,221.24,611.53,525.94,unique burgundy target candidate in raw frame
+1270,114.808000000,D3_repeated_crossing_1268_1302,held_out,true,confirm_target,1,406.54,222.72,607.99,527.41,unique burgundy target candidate in raw frame
+1272,114.976000000,D3_repeated_crossing_1268_1302,held_out,true,confirm_target,1,452.38,224.84,595.78,531.92,unique burgundy target candidate in raw frame
+1274,115.072000000,D3_repeated_crossing_1268_1302,held_out,true,confirm_target,2,482.26,223.61,607.12,537.94,unique burgundy target candidate in raw frame
+1276,115.140000000,D3_repeated_crossing_1268_1302,held_out,true,confirm_target,2,488.78,224.29,623.93,538.60,unique burgundy target candidate in raw frame
+1278,115.240000000,D3_repeated_crossing_1268_1302,held_out,true,confirm_target,1,488.37,224.66,621.49,531.40,unique burgundy target candidate in raw frame
+1280,115.372000000,D3_repeated_crossing_1268_1302,held_out,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1282,115.600000000,D3_repeated_crossing_1268_1302,held_out,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1284,115.732000000,D3_repeated_crossing_1268_1302,held_out,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1286,115.800000000,D3_repeated_crossing_1268_1302,held_out,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1288,116.064000000,D3_repeated_crossing_1268_1302,held_out,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1290,116.228000000,D3_repeated_crossing_1268_1302,held_out,true,abstain_ambiguous,,,,,,overlapping/merged candidates; no unique target box
+1292,116.624000000,D3_repeated_crossing_1268_1302,held_out,true,confirm_target,0,615.68,221.22,742.21,530.61,unique burgundy target candidate in raw frame
+1294,116.756000000,D3_repeated_crossing_1268_1302,held_out,true,confirm_target,1,651.59,220.18,731.78,525.79,unique burgundy target candidate in raw frame
+1296,116.824000000,D3_repeated_crossing_1268_1302,held_out,true,confirm_target,1,642.19,221.92,747.26,525.71,unique burgundy target candidate in raw frame
+1298,116.920000000,D3_repeated_crossing_1268_1302,held_out,true,confirm_target,1,621.49,222.22,767.99,528.48,unique burgundy target candidate in raw frame
+1300,117.020000000,D3_repeated_crossing_1268_1302,held_out,true,confirm_target,1,609.86,221.83,783.22,527.40,unique burgundy target candidate in raw frame
+1302,117.120000000,D3_repeated_crossing_1268_1302,held_out,true,confirm_target,1,631.54,225.07,785.49,526.62,unique burgundy target candidate in raw frame

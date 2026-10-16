@@ -3,7 +3,7 @@
 <package format="3">
   <name>uav_perception</name>
   <version>0.1.0</version>
-  <description>Real-time YOLO26n object perception package for UAV</description>
+  <description>Real-time YOLO26n and BoT-SORT perception package for UAV</description>
   <maintainer email="tungt@example.com">tungt</maintainer>
   <license>Apache-2.0</license>
 
@@ -11,6 +11,10 @@
   <depend>sensor_msgs</depend>
   <depend>vision_msgs</depend>
   <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+
+  <test_depend>pytest</test_depend>
+  <test_depend>rosgraph_msgs</test_depend>
 
   <export>
     <build_type>ament_python</build_type>

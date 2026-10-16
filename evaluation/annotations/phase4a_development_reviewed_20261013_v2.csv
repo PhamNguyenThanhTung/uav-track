@@ -1,0 +1,181 @@
+frame,sim_time_s,event_id,event_role,event_phase,target_visible,expected_action,target_detection_index,x1,y1,x2,y2,annotation_basis
+505,66.828000000,B_crossing_505_545,development,before,true,confirm_target,1,511.27,213.54,630.64,520.31,unique raw red/burgundy body owner; reference crop may contain limbs
+506,66.860000000,B_crossing_505_545,development,before,true,confirm_target,1,500.78,215.67,641.61,524.47,unique raw red/burgundy body owner; reference crop may contain limbs
+507,67.060000000,B_crossing_505_545,development,before,true,confirm_target,0,502.41,211.23,649.02,521.41,unique raw red/burgundy body owner; reference crop may contain limbs
+508,67.124000000,B_crossing_505_545,development,before,true,confirm_target,0,520.42,211.87,649.07,514.70,unique raw red/burgundy body owner; reference crop may contain limbs
+509,67.192000000,B_crossing_505_545,development,before,true,confirm_target,1,540.63,213.14,634.46,514.62,unique raw red/burgundy body owner; reference crop may contain limbs
+510,67.288000000,B_crossing_505_545,development,before,true,confirm_target,1,558.68,210.41,646.04,501.41,unique raw red/burgundy body owner; reference crop may contain limbs
+511,67.324000000,B_crossing_505_545,development,crossing,true,confirm_target,1,540.92,210.56,622.91,492.10,unique raw red/burgundy body owner; reference crop may contain limbs
+512,67.356000000,B_crossing_505_545,development,crossing,true,confirm_target,0,526.92,210.05,621.72,455.93,unique raw red/burgundy body owner; reference crop may contain limbs
+513,67.420000000,B_crossing_505_545,development,crossing,true,confirm_target,2,518.52,209.81,637.86,465.45,unique raw red/burgundy body owner; reference crop may contain limbs
+514,67.456000000,B_crossing_505_545,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+515,67.488000000,B_crossing_505_545,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+516,67.652000000,B_crossing_505_545,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+517,67.720000000,B_crossing_505_545,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+518,67.784000000,B_crossing_505_545,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+519,67.852000000,B_crossing_505_545,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+520,67.884000000,B_crossing_505_545,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+521,67.948000000,B_crossing_505_545,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+522,67.984000000,B_crossing_505_545,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+523,68.116000000,B_crossing_505_545,development,after,true,confirm_target,0,602.93,203.24,741.39,482.40,unique raw red/burgundy body owner; reference crop may contain limbs
+524,68.248000000,B_crossing_505_545,development,after,true,confirm_target,1,622.21,200.54,737.76,498.83,unique raw red/burgundy body owner; reference crop may contain limbs
+525,68.312000000,B_crossing_505_545,development,after,true,confirm_target,0,629.12,199.47,722.01,506.59,unique raw red/burgundy body owner; reference crop may contain limbs
+526,68.344000000,B_crossing_505_545,development,after,true,confirm_target,0,636.44,197.19,719.06,503.22,unique raw red/burgundy body owner; reference crop may contain limbs
+527,68.380000000,B_crossing_505_545,development,after,true,confirm_target,1,646.36,196.56,729.88,502.58,unique raw red/burgundy body owner; reference crop may contain limbs
+528,68.412000000,B_crossing_505_545,development,after,true,confirm_target,1,643.96,193.37,736.48,501.30,unique raw red/burgundy body owner; reference crop may contain limbs
+529,68.512000000,B_crossing_505_545,development,after,true,confirm_target,1,623.73,196.91,761.30,501.78,unique raw red/burgundy body owner; reference crop may contain limbs
+530,68.576000000,B_crossing_505_545,development,after,true,confirm_target,1,621.21,201.02,770.71,499.78,unique raw red/burgundy body owner; reference crop may contain limbs
+531,68.644000000,B_crossing_505_545,development,after,true,confirm_target,1,606.82,199.68,779.91,497.17,unique raw red/burgundy body owner; reference crop may contain limbs
+532,68.676000000,B_crossing_505_545,development,after,true,confirm_target,1,614.49,198.82,781.60,497.76,unique raw red/burgundy body owner; reference crop may contain limbs
+533,68.740000000,B_crossing_505_545,development,after,true,confirm_target,1,622.98,197.69,785.25,500.01,unique raw red/burgundy body owner; reference crop may contain limbs
+534,68.776000000,B_crossing_505_545,development,after,true,confirm_target,1,642.00,197.81,779.72,502.37,unique raw red/burgundy body owner; reference crop may contain limbs
+535,68.840000000,B_crossing_505_545,development,after,true,confirm_target,2,661.89,198.58,768.60,504.08,unique raw red/burgundy body owner; reference crop may contain limbs
+536,68.872000000,B_crossing_505_545,development,after,true,confirm_target,2,673.77,196.60,766.09,506.90,unique raw red/burgundy body owner; reference crop may contain limbs
+537,68.940000000,B_crossing_505_545,development,after,true,confirm_target,1,695.05,194.61,770.37,507.75,unique raw red/burgundy body owner; reference crop may contain limbs
+538,68.972000000,B_crossing_505_545,development,after,true,confirm_target,1,688.62,195.25,774.42,505.61,unique raw red/burgundy body owner; reference crop may contain limbs
+539,69.004000000,B_crossing_505_545,development,after,true,confirm_target,1,678.52,194.26,778.16,507.40,unique raw red/burgundy body owner; reference crop may contain limbs
+540,69.072000000,B_crossing_505_545,development,after,true,confirm_target,1,661.06,196.97,794.75,509.34,unique raw red/burgundy body owner; reference crop may contain limbs
+541,69.104000000,B_crossing_505_545,development,after,true,confirm_target,1,657.68,197.33,799.39,508.95,unique raw red/burgundy body owner; reference crop may contain limbs
+542,69.136000000,B_crossing_505_545,development,after,true,confirm_target,1,653.02,196.71,802.14,508.64,unique raw red/burgundy body owner; reference crop may contain limbs
+543,69.172000000,B_crossing_505_545,development,after,true,confirm_target,0,647.29,196.94,810.93,508.26,unique raw red/burgundy body owner; reference crop may contain limbs
+544,69.204000000,B_crossing_505_545,development,after,true,confirm_target,0,641.89,197.07,819.17,509.22,unique raw red/burgundy body owner; reference crop may contain limbs
+545,69.304000000,B_crossing_505_545,development,after,true,confirm_target,0,667.32,200.51,824.78,505.53,unique raw red/burgundy body owner; reference crop may contain limbs
+937,94.744000000,C_crossing_937_977,development,before,true,confirm_target,2,666.60,219.11,766.40,529.00,unique raw red/burgundy body owner; reference crop may contain limbs
+938,94.780000000,C_crossing_937_977,development,before,true,confirm_target,1,678.64,217.62,765.71,531.98,unique raw red/burgundy body owner; reference crop may contain limbs
+939,94.812000000,C_crossing_937_977,development,before,true,confirm_target,0,685.63,218.07,762.70,528.03,unique raw red/burgundy body owner; reference crop may contain limbs
+940,94.944000000,C_crossing_937_977,development,before,true,confirm_target,0,639.69,218.65,775.19,532.61,unique raw red/burgundy body owner; reference crop may contain limbs
+941,94.976000000,C_crossing_937_977,development,before,true,confirm_target,0,631.91,218.49,776.94,531.75,unique raw red/burgundy body owner; reference crop may contain limbs
+942,95.044000000,C_crossing_937_977,development,before,true,confirm_target,0,616.83,218.77,774.09,530.76,unique raw red/burgundy body owner; reference crop may contain limbs
+943,95.076000000,C_crossing_937_977,development,before,true,confirm_target,0,612.89,219.50,776.63,533.12,unique raw red/burgundy body owner; reference crop may contain limbs
+944,95.140000000,C_crossing_937_977,development,before,true,confirm_target,0,617.13,220.41,775.75,532.52,unique raw red/burgundy body owner; reference crop may contain limbs
+945,95.308000000,C_crossing_937_977,development,before,true,confirm_target,1,630.95,217.62,725.24,531.26,unique raw red/burgundy body owner; reference crop may contain limbs
+946,95.340000000,C_crossing_937_977,development,before,true,confirm_target,0,632.17,218.94,715.33,531.64,unique raw red/burgundy body owner; reference crop may contain limbs
+947,95.372000000,C_crossing_937_977,development,before,true,confirm_target,1,632.72,218.82,717.33,528.59,unique raw red/burgundy body owner; reference crop may contain limbs
+948,95.440000000,C_crossing_937_977,development,before,true,confirm_target,0,622.10,222.09,728.58,526.56,unique raw red/burgundy body owner; reference crop may contain limbs
+949,95.472000000,C_crossing_937_977,development,before,true,confirm_target,0,609.66,220.79,735.28,528.86,unique raw red/burgundy body owner; reference crop may contain limbs
+950,95.504000000,C_crossing_937_977,development,crossing,true,confirm_target,0,596.24,221.50,738.73,530.30,unique raw red/burgundy body owner; reference crop may contain limbs
+951,95.604000000,C_crossing_937_977,development,crossing,true,confirm_target,0,564.01,221.78,736.36,530.43,unique raw red/burgundy body owner; reference crop may contain limbs
+952,95.668000000,C_crossing_937_977,development,crossing,true,confirm_target,2,594.88,225.69,731.06,529.66,unique raw red/burgundy body owner; reference crop may contain limbs
+953,95.768000000,C_crossing_937_977,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+954,95.800000000,C_crossing_937_977,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+955,95.868000000,C_crossing_937_977,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+956,95.900000000,C_crossing_937_977,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+957,96.000000000,C_crossing_937_977,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+958,96.196000000,C_crossing_937_977,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+959,96.232000000,C_crossing_937_977,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+960,96.264000000,C_crossing_937_977,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+961,96.364000000,C_crossing_937_977,development,crossing,true,confirm_target,1,513.38,216.46,644.10,531.46,unique raw red/burgundy body owner; reference crop may contain limbs
+962,96.428000000,C_crossing_937_977,development,crossing,true,confirm_target,0,521.80,221.46,666.26,529.19,unique raw red/burgundy body owner; reference crop may contain limbs
+963,96.460000000,C_crossing_937_977,development,crossing,true,confirm_target,0,526.72,220.59,620.96,526.78,unique raw red/burgundy body owner; reference crop may contain limbs
+964,96.560000000,C_crossing_937_977,development,crossing,true,confirm_target,4,542.10,208.62,632.49,527.29,unique raw red/burgundy body owner; reference crop may contain limbs
+965,96.760000000,C_crossing_937_977,development,after,true,confirm_target,0,432.75,219.74,637.68,526.34,unique raw red/burgundy body owner; reference crop may contain limbs
+966,96.792000000,C_crossing_937_977,development,after,true,confirm_target,0,432.09,219.98,634.42,526.81,unique raw red/burgundy body owner; reference crop may contain limbs
+967,96.824000000,C_crossing_937_977,development,after,true,confirm_target,0,430.07,220.04,629.20,525.97,unique raw red/burgundy body owner; reference crop may contain limbs
+968,96.892000000,C_crossing_937_977,development,after,true,confirm_target,0,435.07,220.26,614.37,525.41,unique raw red/burgundy body owner; reference crop may contain limbs
+969,96.988000000,C_crossing_937_977,development,after,true,confirm_target,1,457.89,219.64,587.65,528.01,unique raw red/burgundy body owner; reference crop may contain limbs
+970,97.056000000,C_crossing_937_977,development,after,true,confirm_target,2,462.89,219.75,573.60,533.25,unique raw red/burgundy body owner; reference crop may contain limbs
+971,97.156000000,C_crossing_937_977,development,after,true,confirm_target,1,455.16,220.04,586.93,531.89,unique raw red/burgundy body owner; reference crop may contain limbs
+972,97.188000000,C_crossing_937_977,development,after,true,confirm_target,1,452.84,219.43,578.53,533.47,unique raw red/burgundy body owner; reference crop may contain limbs
+973,97.220000000,C_crossing_937_977,development,after,true,confirm_target,1,448.71,218.85,582.78,530.66,unique raw red/burgundy body owner; reference crop may contain limbs
+974,97.288000000,C_crossing_937_977,development,after,true,confirm_target,2,438.07,217.54,567.98,529.27,unique raw red/burgundy body owner; reference crop may contain limbs
+975,97.320000000,C_crossing_937_977,development,after,true,confirm_target,2,431.41,217.89,572.50,528.03,unique raw red/burgundy body owner; reference crop may contain limbs
+976,97.384000000,C_crossing_937_977,development,after,true,confirm_target,1,424.82,218.33,577.95,526.49,unique raw red/burgundy body owner; reference crop may contain limbs
+977,97.420000000,C_crossing_937_977,development,after,true,confirm_target,1,424.75,217.94,584.41,523.49,unique raw red/burgundy body owner; reference crop may contain limbs
+1080,103.060000000,D1_crossing_1080_1110,development,before,true,confirm_target,0,623.45,211.50,777.57,528.01,unique raw red/burgundy body owner; reference crop may contain limbs
+1081,103.128000000,D1_crossing_1080_1110,development,before,true,confirm_target,0,630.40,209.04,756.40,516.81,unique raw red/burgundy body owner; reference crop may contain limbs
+1082,103.192000000,D1_crossing_1080_1110,development,before,true,confirm_target,1,634.09,209.40,729.15,523.48,unique raw red/burgundy body owner; reference crop may contain limbs
+1083,103.228000000,D1_crossing_1080_1110,development,before,true,confirm_target,1,644.22,209.15,724.69,523.86,unique raw red/burgundy body owner; reference crop may contain limbs
+1084,103.260000000,D1_crossing_1080_1110,development,before,true,confirm_target,1,646.43,208.26,727.21,521.59,unique raw red/burgundy body owner; reference crop may contain limbs
+1085,103.292000000,D1_crossing_1080_1110,development,crossing,true,confirm_target,0,634.83,208.08,730.61,523.70,unique raw red/burgundy body owner; reference crop may contain limbs
+1086,103.360000000,D1_crossing_1080_1110,development,crossing,true,confirm_target,0,608.39,214.39,739.62,523.01,unique raw red/burgundy body owner; reference crop may contain limbs
+1087,103.424000000,D1_crossing_1080_1110,development,crossing,true,confirm_target,0,593.13,214.13,744.29,524.50,unique raw red/burgundy body owner; reference crop may contain limbs
+1088,103.456000000,D1_crossing_1080_1110,development,crossing,true,confirm_target,1,593.97,213.41,741.73,522.59,unique raw red/burgundy body owner; reference crop may contain limbs
+1089,103.492000000,D1_crossing_1080_1110,development,crossing,true,confirm_target,1,585.73,212.30,742.11,523.85,unique raw red/burgundy body owner; reference crop may contain limbs
+1090,103.524000000,D1_crossing_1080_1110,development,crossing,true,confirm_target,1,598.44,212.52,741.77,525.61,unique raw red/burgundy body owner; reference crop may contain limbs
+1091,103.756000000,D1_crossing_1080_1110,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+1092,103.820000000,D1_crossing_1080_1110,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+1093,103.984000000,D1_crossing_1080_1110,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+1094,104.020000000,D1_crossing_1080_1110,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+1095,104.084000000,D1_crossing_1080_1110,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+1096,104.248000000,D1_crossing_1080_1110,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+1097,104.284000000,D1_crossing_1080_1110,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+1098,104.348000000,D1_crossing_1080_1110,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+1099,104.448000000,D1_crossing_1080_1110,development,crossing,true,confirm_target,4,515.38,204.54,602.29,497.60,unique raw red/burgundy body owner; reference crop may contain limbs
+1100,104.548000000,D1_crossing_1080_1110,development,crossing,true,confirm_target,1,474.19,205.23,644.64,511.68,unique raw red/burgundy body owner; reference crop may contain limbs
+1101,104.580000000,D1_crossing_1080_1110,development,crossing,true,confirm_target,1,464.54,206.98,650.72,513.71,unique raw red/burgundy body owner; reference crop may contain limbs
+1102,104.712000000,D1_crossing_1080_1110,development,after,true,confirm_target,1,446.60,206.51,632.65,516.27,unique raw red/burgundy body owner; reference crop may contain limbs
+1103,104.776000000,D1_crossing_1080_1110,development,after,true,confirm_target,1,448.77,204.21,633.24,512.99,unique raw red/burgundy body owner; reference crop may contain limbs
+1104,104.844000000,D1_crossing_1080_1110,development,after,true,confirm_target,0,468.31,205.46,615.84,519.74,unique raw red/burgundy body owner; reference crop may contain limbs
+1105,104.876000000,D1_crossing_1080_1110,development,after,true,confirm_target,0,478.50,206.70,599.10,519.41,unique raw red/burgundy body owner; reference crop may contain limbs
+1106,104.944000000,D1_crossing_1080_1110,development,after,true,confirm_target,1,481.88,206.73,603.67,527.77,unique raw red/burgundy body owner; reference crop may contain limbs
+1107,104.976000000,D1_crossing_1080_1110,development,after,true,confirm_target,1,479.71,207.37,604.12,528.23,unique raw red/burgundy body owner; reference crop may contain limbs
+1108,105.008000000,D1_crossing_1080_1110,development,after,true,confirm_target,1,476.97,206.46,610.40,528.60,unique raw red/burgundy body owner; reference crop may contain limbs
+1109,105.108000000,D1_crossing_1080_1110,development,after,true,confirm_target,1,464.41,204.83,623.66,525.97,unique raw red/burgundy body owner; reference crop may contain limbs
+1110,105.240000000,D1_crossing_1080_1110,development,after,true,confirm_target,1,442.05,203.11,620.50,526.59,unique raw red/burgundy body owner; reference crop may contain limbs
+1120,105.768000000,D2_crossing_1120_1186,development,before,true,confirm_target,1,383.23,203.36,593.70,514.20,unique raw red/burgundy body owner; reference crop may contain limbs
+1121,105.800000000,D2_crossing_1120_1186,development,before,true,confirm_target,1,384.41,203.53,591.43,514.07,unique raw red/burgundy body owner; reference crop may contain limbs
+1122,105.832000000,D2_crossing_1120_1186,development,before,true,confirm_target,1,386.49,203.68,597.11,514.74,unique raw red/burgundy body owner; reference crop may contain limbs
+1123,105.900000000,D2_crossing_1120_1186,development,before,true,confirm_target,0,400.13,205.11,590.34,517.59,unique raw red/burgundy body owner; reference crop may contain limbs
+1124,105.964000000,D2_crossing_1120_1186,development,before,true,confirm_target,1,417.97,206.54,572.93,521.41,unique raw red/burgundy body owner; reference crop may contain limbs
+1125,106.032000000,D2_crossing_1120_1186,development,before,true,confirm_target,1,432.58,206.90,560.18,525.18,unique raw red/burgundy body owner; reference crop may contain limbs
+1126,106.164000000,D2_crossing_1120_1186,development,before,true,confirm_target,0,433.04,207.59,595.85,527.00,unique raw red/burgundy body owner; reference crop may contain limbs
+1127,106.228000000,D2_crossing_1120_1186,development,before,true,confirm_target,2,433.29,207.20,596.45,526.49,unique raw red/burgundy body owner; reference crop may contain limbs
+1128,106.264000000,D2_crossing_1120_1186,development,before,true,confirm_target,1,433.14,208.20,599.78,524.65,unique raw red/burgundy body owner; reference crop may contain limbs
+1129,106.296000000,D2_crossing_1120_1186,development,before,true,confirm_target,1,430.36,207.94,600.30,523.68,unique raw red/burgundy body owner; reference crop may contain limbs
+1130,106.360000000,D2_crossing_1120_1186,development,before,true,confirm_target,1,425.18,206.56,604.96,526.66,unique raw red/burgundy body owner; reference crop may contain limbs
+1131,106.428000000,D2_crossing_1120_1186,development,before,true,confirm_target,1,427.69,206.55,603.11,525.59,unique raw red/burgundy body owner; reference crop may contain limbs
+1132,106.492000000,D2_crossing_1120_1186,development,before,true,confirm_target,1,441.31,206.47,597.12,523.75,unique raw red/burgundy body owner; reference crop may contain limbs
+1133,106.592000000,D2_crossing_1120_1186,development,before,true,confirm_target,0,448.45,206.27,574.87,517.22,unique raw red/burgundy body owner; reference crop may contain limbs
+1134,106.624000000,D2_crossing_1120_1186,development,before,true,confirm_target,0,450.67,205.68,571.70,517.32,unique raw red/burgundy body owner; reference crop may contain limbs
+1135,106.660000000,D2_crossing_1120_1186,development,before,true,confirm_target,0,453.70,206.23,582.81,514.24,unique raw red/burgundy body owner; reference crop may contain limbs
+1136,106.724000000,D2_crossing_1120_1186,development,before,true,confirm_target,1,440.83,208.08,601.38,518.28,unique raw red/burgundy body owner; reference crop may contain limbs
+1137,106.756000000,D2_crossing_1120_1186,development,before,true,confirm_target,1,431.75,207.16,595.75,514.95,unique raw red/burgundy body owner; reference crop may contain limbs
+1138,106.824000000,D2_crossing_1120_1186,development,before,true,confirm_target,1,424.73,209.33,616.79,516.76,unique raw red/burgundy body owner; reference crop may contain limbs
+1139,106.856000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,1,417.69,208.63,616.33,516.32,unique raw red/burgundy body owner; reference crop may contain limbs
+1140,106.888000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,0,411.72,209.05,622.96,514.64,unique raw red/burgundy body owner; reference crop may contain limbs
+1141,106.956000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,1,419.81,208.77,612.41,515.05,unique raw red/burgundy body owner; reference crop may contain limbs
+1142,106.988000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,1,427.90,209.54,613.93,518.39,unique raw red/burgundy body owner; reference crop may contain limbs
+1143,107.056000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,0,439.28,209.98,615.74,521.23,unique raw red/burgundy body owner; reference crop may contain limbs
+1144,107.088000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,0,459.49,211.77,604.30,522.65,unique raw red/burgundy body owner; reference crop may contain limbs
+1145,107.152000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,2,492.10,208.87,591.53,525.71,unique raw red/burgundy body owner; reference crop may contain limbs
+1146,107.220000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,2,497.86,209.25,630.52,528.78,unique raw red/burgundy body owner; reference crop may contain limbs
+1147,107.252000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,2,499.94,208.44,624.38,528.05,unique raw red/burgundy body owner; reference crop may contain limbs
+1148,107.452000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,1,491.16,204.10,623.28,521.51,unique raw red/burgundy body owner; reference crop may contain limbs
+1149,107.484000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,1,491.73,207.30,635.43,521.52,unique raw red/burgundy body owner; reference crop may contain limbs
+1150,107.516000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,1,495.14,204.87,637.31,519.49,unique raw red/burgundy body owner; reference crop may contain limbs
+1151,107.584000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,1,505.83,206.23,649.19,516.49,unique raw red/burgundy body owner; reference crop may contain limbs
+1152,107.648000000,D2_crossing_1120_1186,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+1153,107.680000000,D2_crossing_1120_1186,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+1154,107.748000000,D2_crossing_1120_1186,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+1155,107.780000000,D2_crossing_1120_1186,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+1156,107.880000000,D2_crossing_1120_1186,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+1157,108.044000000,D2_crossing_1120_1186,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+1158,108.076000000,D2_crossing_1120_1186,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+1159,108.208000000,D2_crossing_1120_1186,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+1160,108.276000000,D2_crossing_1120_1186,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+1161,108.340000000,D2_crossing_1120_1186,development,crossing,true,abstain_ambiguous,,,,,,merged/occluded detections; no independently unique target box
+1162,108.408000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,0,611.54,208.33,723.34,512.99,unique raw red/burgundy body owner; reference crop may contain limbs
+1163,108.440000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,0,624.69,207.09,731.28,487.34,unique raw red/burgundy body owner; reference crop may contain limbs
+1164,108.508000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,0,590.37,207.96,741.74,518.38,unique raw red/burgundy body owner; reference crop may contain limbs
+1165,108.540000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,0,589.05,209.51,743.93,516.09,unique raw red/burgundy body owner; reference crop may contain limbs
+1166,108.604000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,0,594.18,207.40,755.19,515.59,unique raw red/burgundy body owner; reference crop may contain limbs
+1167,108.640000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,0,602.45,206.96,758.69,515.49,unique raw red/burgundy body owner; reference crop may contain limbs
+1168,108.704000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,1,620.55,205.72,760.72,519.63,unique raw red/burgundy body owner; reference crop may contain limbs
+1169,108.736000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,1,631.44,202.77,754.13,505.17,unique raw red/burgundy body owner; reference crop may contain limbs
+1170,108.772000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,1,634.26,203.11,745.98,509.39,unique raw red/burgundy body owner; reference crop may contain limbs
+1171,108.836000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,1,646.26,203.07,734.41,513.51,unique raw red/burgundy body owner; reference crop may contain limbs
+1172,108.904000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,0,671.22,203.49,747.08,510.49,unique raw red/burgundy body owner; reference crop may contain limbs
+1173,108.936000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,0,648.99,203.52,754.14,511.47,unique raw red/burgundy body owner; reference crop may contain limbs
+1174,108.968000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,0,656.27,202.27,765.84,509.94,unique raw red/burgundy body owner; reference crop may contain limbs
+1175,109.036000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,1,638.68,204.81,777.96,508.84,unique raw red/burgundy body owner; reference crop may contain limbs
+1176,109.100000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,1,639.52,205.13,783.49,510.86,unique raw red/burgundy body owner; reference crop may contain limbs
+1177,109.168000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,1,634.06,204.83,792.84,510.71,unique raw red/burgundy body owner; reference crop may contain limbs
+1178,109.200000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,1,637.96,204.98,795.92,509.29,unique raw red/burgundy body owner; reference crop may contain limbs
+1179,109.232000000,D2_crossing_1120_1186,development,crossing,true,confirm_target,1,641.03,205.20,795.93,508.97,unique raw red/burgundy body owner; reference crop may contain limbs
+1180,109.300000000,D2_crossing_1120_1186,development,after,true,confirm_target,1,654.39,205.55,787.80,512.23,unique raw red/burgundy body owner; reference crop may contain limbs
+1181,109.332000000,D2_crossing_1120_1186,development,after,true,confirm_target,1,667.04,206.31,779.02,514.40,unique raw red/burgundy body owner; reference crop may contain limbs
+1182,109.396000000,D2_crossing_1120_1186,development,after,true,confirm_target,1,691.38,206.99,778.23,517.15,unique raw red/burgundy body owner; reference crop may contain limbs
+1183,109.432000000,D2_crossing_1120_1186,development,after,true,confirm_target,0,702.68,207.21,781.07,519.28,unique raw red/burgundy body owner; reference crop may contain limbs
+1184,109.496000000,D2_crossing_1120_1186,development,after,true,confirm_target,0,690.37,207.86,786.23,518.91,unique raw red/burgundy body owner; reference crop may contain limbs
+1185,109.596000000,D2_crossing_1120_1186,development,after,true,confirm_target,0,666.00,208.57,803.30,520.60,unique raw red/burgundy body owner; reference crop may contain limbs
+1186,109.696000000,D2_crossing_1120_1186,development,after,true,confirm_target,0,649.71,208.10,820.61,521.11,unique raw red/burgundy body owner; reference crop may contain limbs

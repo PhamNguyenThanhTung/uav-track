@@ -1,0 +1,51 @@
+{
+  "capture": "/home/tungt/UAV_Project/project/evaluation/results/runs/tracking_3_people_20261009T084549Z",
+  "raw_video_sha256": "09dc9be3a936d0a33d9e73ea5cc910b231078e19ede45e1cbf233671e4fbc65c",
+  "source_detections_sha256": "a50bef8b3a49c7f1a62af0ed24fe4d86bd611b4cde5ab70b698489bcb2f45da1",
+  "source_frames_sha256": "7aff2ed4327141d4b115dd9e8abda7853f53322132bec24fc7d85203b82854d9",
+  "annotation_sha256": "2333be93f736241156ca0ef07b23866df5b3b0b821886eef62fa9ee0430dc538",
+  "method": "Manual target-to-anonymous-detection assignment from raw video; no tracking overlay, raw TID, gt_person, or gt_color_fraction used.",
+  "target_anchor": "Initial first-fresh-track selection at frame 3, visually identified from the raw frame as the burgundy-shirted person.",
+  "split": "Development events B (505-545), C (937-977), D1 (1080-1110), and D2 (1120-1186); held-out event D3 (1268-1302, sampled every two frames). All are from one capture, so this is event-held-out, not capture-held-out.",
+  "events": [
+    {
+      "event_id": "B_two_person_crossing_505_545",
+      "role": "development",
+      "labeled_frames": 41,
+      "clear_target_rows": 29,
+      "ambiguous_rows": 12
+    },
+    {
+      "event_id": "C_three_person_crossing_937_977",
+      "role": "development",
+      "labeled_frames": 41,
+      "clear_target_rows": 26,
+      "ambiguous_rows": 15
+    },
+    {
+      "event_id": "D1_repeated_crossing_1080_1110",
+      "role": "development",
+      "labeled_frames": 16,
+      "clear_target_rows": 8,
+      "ambiguous_rows": 8
+    },
+    {
+      "event_id": "D2_repeated_crossing_1120_1186",
+      "role": "development",
+      "labeled_frames": 34,
+      "clear_target_rows": 14,
+      "ambiguous_rows": 20
+    },
+    {
+      "event_id": "D3_repeated_crossing_1268_1302",
+      "role": "held_out",
+      "labeled_frames": 18,
+      "clear_target_rows": 12,
+      "ambiguous_rows": 6
+    }
+  ],
+  "rows": 150,
+  "confirm_target_rows": 89,
+  "abstain_ambiguous_rows": 61,
+  "review_note": "Single independent visual annotation pass by Codex; a second human adjudicator has not reviewed the labels."
+}

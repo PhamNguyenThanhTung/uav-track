@@ -1,0 +1,1 @@
+Raw MP4 with anonymous detector indices only. No tracker output, selected bbox or guard scores rendered. Review all frames, assign target owner independently; torso/body ownership and dirty appearance crop are distinct. Red/burgundy actor selected at capture start. D3 raw review before opening current guard output. One visual review by Codex; human adjudication pending.

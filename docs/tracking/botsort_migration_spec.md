@@ -1,0 +1,23 @@
+# BoT-SORT migration specification
+
+**Scope:** replace the `deep_sort_realtime.DeepSort` stage inside the existing ROS 2 `YOLODetectorNode`, preserving its fresh-measurement → `TargetIdentityManager` → `GimbalController` contract. Do not modify UAV flight-control authority.
+
+## Inspected implementation and fixed decisions
+
+- Current source calls `YOLO.predict`, constructs person detections, updates DeepSORT, and passes confirmed fresh track objects into `TargetIdentityManager`; only its accepted measured bbox reaches gimbal commands and `/yolo/detections`. The active source/tests and extensive dirty/untracked working tree are the starting snapshot; HEAD alone omits the current Phase 4A implementation.
+- Runtime uses Ultralytics `8.4.164`; that installed version includes public `ultralytics.trackers.bot_sort.BOTSORT`, GMC, and the ReID encoder. Integrate its direct `BOTSORT.update(boxes, image)` API rather than changing inference to `YOLO.track` callbacks. Adapt confirmed `tracked_stracks` into the small observation interface the manager already consumes. Keep current YOLO detector and manager policy.
+- Use Ultralytics' pretrained `yolo26n-reid.onnx` encoder, configure ReID on, and use `onnxruntime-gpu` on the existing CUDA 13 / RTX 4060 runtime. The runtime currently has no ONNX Runtime. Make installation/version requirements reproducible in project-owned dependency documentation; never add the weight to Git. Startup must fail clearly if configured ReID is unavailable; do not silently run without appearance.
+- Preserve the manager's optional HSV torso cue from current person detections, along with its embedding anchor/gallery policy. Recompute that CPU descriptor from the current image/detection and pass it by `track.idx`; ReID association still uses the configured pretrained model.
+- Enable library GMC with `orb`: it masks detected person boxes during feature extraction and estimates a RANSAC partial affine transform. Keep the upstream identity-transform fallback on transform failure. Do not implement a second GMC algorithm.
+- Start from installed upstream defaults: `track_high_thresh=0.25`, `track_low_thresh=0.10`, `new_track_thresh=0.25`, `match_thresh=0.8`, `track_buffer=30` frames, `proximity_thresh=0.5`, `appearance_thresh=0.8`, `fuse_score=true`. Put these and `with_reid=true`, model, GMC method in a package-installed YAML. Restrict the detector to class 0 person as today. Do not micro-tune.
+- Preserve integer raw tracker IDs as string at the manager boundary; use current YOLO original detection bbox and confidence indexed by BoT-SORT's output `idx`, not the predicted Kalman box. Pass BoT-SORT's actual appearance feature for manager validation. Never pass predicted-only tracks as fresh measurements.
+- Preserve source image timestamp for manager motion and ordering. Add a simulation-clock-compatible stale age check and monotonic receipt watchdog only with a defined `/clock` bridge/`use_sim_time` launch contract. Stale/nonmonotonic input produces no bbox-driven command; it must not auto-acquire another person. Simulation pauses must not create false wall/source-clock subtraction.
+- `/yolo/reset_target` resets both guard and BoT-SORT state. Preserve terminal LOST/reset policy, two-observation target reassociation, controller units/rates/limits, topics, and UAV XY hold.
+
+## Scope boundaries and validation
+
+Production changes: perception tracker adapter/config/dependency, ROS bridge/launch clock wiring if required, focused tests. No new general abstraction/package, tracker comparison, flight-following, tracker-ID guarantee for distractors, model training, or cleanup until migration is running and reviewed. Preserve the user working tree.
+
+Tests must exercise real installed BoT-SORT mechanics (initialization, empty frame, IDs, short miss/reactivation, multiple detections) plus manager integration, ReID feature creation/use, reset, timestamp/stale cases, and GMC exception fallback. A fake detector or isolated manager mock alone is insufficient. Then run the existing regression suite, package build/import and GPU/ROS neural replay; verify actually selected current source/config/model and that `encoder` is loaded and `get_dists` uses appearance costs.
+
+Simulation acceptance still requires the user's six cases (static, camera yaw, UAV translation, occlusion, crossing, leave/re-enter), with raw detection output, candidate/selected TID, manager status, GMC outcome, accepted bbox, command and observed joint position logged. Do not call an offline replay a Gazebo end-to-end pass. Record test gaps honestly. Cleanup is a later gated work item after runtime acceptance; preserve regression coverage, current dependency/repro docs, required worlds and historical provenance.

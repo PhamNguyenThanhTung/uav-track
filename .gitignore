@@ -1,8 +1,12 @@
 build/
 install/
 log/
+evaluation/results/runs/
+evaluation/annotations/**/*.jpg
 __pycache__/
 *.pyc
+.pytest_cache/
+*.egg-info/
 .venv/
 *.pt
 *.onnx

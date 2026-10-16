@@ -9,9 +9,10 @@
       <uri>model://x500</uri>
     </include>
 
-    <!-- Gimbal Mount Link attached to X500 base_link -->
+    <!-- Mount outside the +Y landing skid. The default yaw (-pi/2)
+         looks toward +Y when pitched; a centered mount sees that skid. -->
     <link name="gimbal_mount_link">
-      <pose relative_to="base_link">0 0 -0.08 0 0 0</pose>
+      <pose relative_to="base_link">0 0.22 -0.08 0 0 0</pose>
       <inertial>
         <mass>0.05</mass>
         <inertia>
@@ -23,6 +24,18 @@
           <izz>0.0001</izz>
         </inertia>
       </inertial>
+      <visual name="gimbal_support_visual">
+        <pose>0 -0.11 0.025 0 0 0</pose>
+        <geometry>
+          <box>
+            <size>0.03 0.22 0.02</size>
+          </box>
+        </geometry>
+        <material>
+          <ambient>0.2 0.2 0.2 1.0</ambient>
+          <diffuse>0.2 0.2 0.2 1.0</diffuse>
+        </material>
+      </visual>
       <visual name="gimbal_mount_visual">
         <geometry>
           <cylinder>
@@ -186,7 +199,7 @@
       <!-- Sensor optical axis points along -Z of camera_link (Straight Down) when pitch joint is 0° -->
       <sensor name="camera_sensor" type="camera">
         <gz_frame_id>camera_link</gz_frame_id>
-        <pose>0 0 -0.02 0 1.57079632679 0</pose>
+        <pose>0 0 -0.02 3.14159265359 1.57079632679 0</pose>
         <topic>custom_x500/camera/image_raw</topic>
         <camera>
           <horizontal_fov>1.57079632679</horizontal_fov>
@@ -206,8 +219,8 @@
       </sensor>
     </link>
 
-    <!-- Pitch Joint (3 DOF - Axis 3: Pitch 0 deg to +60 deg) -->
-    <!-- 0 deg = camera looking straight down; +60 deg = tilted 60 deg up towards forward horizon -->
+    <!-- Pitch Joint (3 DOF - Axis 3: Pitch 0 deg to +70 deg) -->
+    <!-- 0 deg = camera looking straight down; +70 deg = tilted 60 deg up towards forward horizon -->
     <joint name="gimbal_pitch_joint" type="revolute">
       <parent>gimbal_roll_link</parent>
       <child>camera_link</child>
@@ -215,7 +228,7 @@
         <xyz>0 1 0</xyz>
         <limit>
           <lower>0.0</lower>
-          <upper>1.0471975512</upper>
+          <upper>1.2217304764</upper>
           <effort>10.0</effort>
           <velocity>5.0</velocity>
         </limit>

@@ -41,61 +41,138 @@ class TrackingMetricCalculator:
                  center_y: float = 360.0,
                  conv_outer_thresh: float = 75.0,
                  conv_inner_thresh: float = 50.0,
-                 conv_hold_frames: int = 5,
-                 track_loss_gap_thresh_s: float = 0.20):
+                 conv_hold_frames: int = 5):
         self.center_x = center_x
         self.center_y = center_y
         self.conv_outer_thresh = conv_outer_thresh
         self.conv_inner_thresh = conv_inner_thresh
         self.conv_hold_frames = conv_hold_frames
-        self.track_loss_gap_thresh_s = track_loss_gap_thresh_s
 
     @staticmethod
     def wrap_angle_rad(angle: float) -> float:
         """Wrap angle to [-pi, pi]."""
         return (angle + math.pi) % (2.0 * math.pi) - math.pi
 
-    def compute_metrics(self, samples: List[Dict[str, Any]], test_name: str, duration_sec: float) -> Dict[str, Any]:
+    def compute_metrics(self,
+                        samples: List[Dict[str, Any]],
+                        test_name: str,
+                        duration_sec: float,
+                        requested_duration_sec: Optional[float] = None,
+                        completion_reason: Optional[str] = None,
+                        actual_duration_sec: Optional[float] = None) -> Dict[str, Any]:
+        samples = sorted(samples, key=lambda sample: sample.get('timestamp', 0.0))
         total_frames = len(samples)
-        if total_frames == 0:
-            return {
-                'test_name': test_name,
-                'duration_sec': duration_sec,
-                'total_camera_frames': 0,
-                'error': 'No samples collected'
-            }
+        if requested_duration_sec is None:
+            requested_duration_sec = duration_sec
+
+        # Actual run duration is independent of the request. Prefer the run
+        # clock supplied by the caller; otherwise use the observed sample span.
+        if actual_duration_sec is not None:
+            actual_duration_sec = max(0.0, float(actual_duration_sec))
+        elif total_frames > 1:
+            t_first = samples[0].get('timestamp', 0.0)
+            t_last = samples[-1].get('timestamp', 0.0)
+            if not math.isnan(t_first) and not math.isnan(t_last) and t_last >= t_first:
+                actual_duration_sec = float(t_last - t_first)
+            else:
+                actual_duration_sec = 0.0
+        else:
+            actual_duration_sec = 0.0
+
+        if completion_reason is None:
+            completion_reason = "no_samples" if total_frames == 0 else "target_duration_reached"
 
         # -------------------------------------------------------------
         # 1. Decoupled Frame Processing & Detection Metrics
         # -------------------------------------------------------------
         if any('is_processed' in s for s in samples):
-            processed_frames = sum(1 for s in samples if s.get('is_processed', False))
-            unprocessed_frames = total_frames - processed_frames
+            processed_frames = sum(1 for s in samples if s.get('is_processed') is True)
+            unprocessed_frames = sum(1 for s in samples if s.get('is_processed') is False)
+            processing_unknown_frames = sum(1 for s in samples if s.get('is_processed') is None)
         else:
             processed_frames = total_frames
             unprocessed_frames = 0
+            processing_unknown_frames = 0
 
         processing_coverage_pct = (processed_frames / total_frames) * 100.0 if total_frames > 0 else 0.0
 
-        det_frames = sum(1 for s in samples if s.get('detection_present', False))
-        detector_misses = sum(1 for s in samples if s.get('detector_miss', s.get('is_processed', False) and not s.get('detection_present', False)))
-        matching_failures = sum(1 for s in samples if s.get('matching_failure', False))
+        # Raw detector telemetry vs Tracker output
+        raw_available_samples = [
+            s for s in samples
+            if s.get('raw_detection_available', 'raw_detection_present' in s)
+        ]
+        has_raw_telemetry = bool(raw_available_samples)
+        if has_raw_telemetry:
+            raw_det_frames = sum(1 for s in raw_available_samples if s.get('raw_detection_present') is True)
+            raw_detector_misses = sum(1 for s in raw_available_samples if s.get('raw_detection_present') is False)
+            raw_unknown_frames = total_frames - len(raw_available_samples)
+            raw_detection_rate_pct = (raw_det_frames / len(raw_available_samples)) * 100.0
+            raw_processed_person_ratio_pct = raw_detection_rate_pct
+        else:
+            raw_det_frames = None
+            raw_detector_misses = None
+            raw_unknown_frames = total_frames
+            raw_detection_rate_pct = None
+            raw_processed_person_ratio_pct = None
 
-        processed_frame_person_ratio_pct = (det_frames / processed_frames) * 100.0 if processed_frames > 0 else 0.0
-        camera_stream_person_ratio_pct = (det_frames / total_frames) * 100.0 if total_frames > 0 else 0.0
+        tracking_available_samples = [
+            s for s in samples
+            if s.get('tracking_output_available', 'detection_present' in s)
+        ]
+        tracking_available_frames = len(tracking_available_samples)
+        det_frames = sum(1 for s in tracking_available_samples if s.get('detection_present') is True)
+        tracking_misses = sum(1 for s in tracking_available_samples if s.get('tracking_miss', s.get('detection_present') is False))
+        matching_failures = sum(1 for s in samples if s.get('matching_failure', False))
+        matching_timeouts = sum(1 for s in samples if s.get('matching_timeout', False))
+        matching_incomplete_samples = sum(
+            1 for s in samples
+            if s.get('matching_incomplete', s.get('matching_timeout', False))
+        )
+
+        processed_frame_person_ratio_pct = (det_frames / tracking_available_frames) * 100.0 if tracking_available_frames > 0 else 0.0
+        if total_frames == tracking_available_frames:
+            camera_stream_person_ratio_pct = processed_frame_person_ratio_pct
+        elif total_frames == 0:
+            camera_stream_person_ratio_pct = 0.0
+        else:
+            camera_stream_person_ratio_pct = None
         detection_rate_pct = camera_stream_person_ratio_pct
 
         # -------------------------------------------------------------
         # 2. Tracking & ID Retention Metrics
         # -------------------------------------------------------------
-        track_frames = sum(1 for s in samples if s.get('track_present', False) and s.get('track_id') is not None)
-        track_retention_pct = (track_frames / total_frames) * 100.0 if total_frames > 0 else 0.0
-        track_retention_on_processed_pct = (track_frames / processed_frames) * 100.0 if processed_frames > 0 else 0.0
+        track_frames = sum(1 for s in tracking_available_samples if s.get('track_present') is True and s.get('track_id') is not None)
+        track_retention_pct = (track_frames / tracking_available_frames) * 100.0 if tracking_available_frames > 0 else 0.0
+        processed_tracking_samples = [
+            s for s in tracking_available_samples if s.get('is_processed') is True
+        ]
+        processed_tracking_frames = sum(
+            1 for s in processed_tracking_samples
+            if s.get('track_present') is True and s.get('track_id') is not None
+        )
+        track_retention_on_processed_pct = (
+            processed_tracking_frames / len(processed_tracking_samples) * 100.0
+            if processed_tracking_samples else 0.0
+        )
 
-        # Processing latency metrics
-        latencies = [float(s['processing_latency_ms']) for s in samples if s.get('processing_latency_ms') is not None and not math.isnan(s['processing_latency_ms'])]
-        if len(latencies) > 0:
-            arr_lat = np.array(latencies, dtype=float)
+        tracker_unconfirmed = None
+        if has_raw_telemetry:
+            tracker_unconfirmed = sum(
+                1 for s in samples
+                if s.get('raw_detection_available', 'raw_detection_present' in s)
+                and s.get('raw_detection_present') is True
+                and s.get('tracking_output_available', 'track_present' in s)
+                and s.get('track_present') is not True
+            )
+
+        # Processing latency metrics: separate actual duration telemetry from arrival skew
+        actual_latencies = [float(s['actual_processing_latency_ms']) for s in samples
+                            if s.get('actual_processing_latency_ms') is not None and not math.isnan(s['actual_processing_latency_ms'])]
+        has_actual_latencies = len(actual_latencies) > 0
+        latencies_to_use = actual_latencies
+
+        if len(latencies_to_use) > 0:
+            arr_lat = np.array(latencies_to_use, dtype=float)
             min_lat = float(np.min(arr_lat))
             med_lat = float(np.median(arr_lat))
             mean_lat = float(np.mean(arr_lat))
@@ -103,6 +180,14 @@ class TrackingMetricCalculator:
             max_lat = float(np.max(arr_lat))
         else:
             min_lat = med_lat = mean_lat = p95_lat = max_lat = None
+
+        if len(actual_latencies) > 0:
+            arr_act = np.array(actual_latencies, dtype=float)
+            actual_mean_lat: Optional[float] = float(np.mean(arr_act))
+            actual_med_lat: Optional[float] = float(np.median(arr_act))
+            actual_p95_lat: Optional[float] = float(np.percentile(arr_act, 95))
+        else:
+            actual_mean_lat = actual_med_lat = actual_p95_lat = None
 
         # Distinguish: ID Switches vs Track Loss / Re-acquisition
         id_switches = 0
@@ -113,10 +198,15 @@ class TrackingMetricCalculator:
         prev_track_id: Optional[str] = None
         prev_track_time: Optional[float] = None
         is_tracking = False
+        previous_tracking_observation = False
 
-        for s in samples:
+        tracking_samples = [
+            s for s in samples
+            if s.get('tracking_output_available', 'track_present' in s)
+        ]
+        for s in tracking_samples:
             t = s['timestamp']
-            has_track = s.get('track_present', False) and (s.get('track_id') is not None)
+            has_track = s.get('track_present') is True and (s.get('track_id') is not None)
             cur_id = str(s['track_id']) if has_track else None
 
             if has_track:
@@ -130,12 +220,7 @@ class TrackingMetricCalculator:
                 else:
                     # Currently in tracking mode
                     if prev_track_time is not None:
-                        dt = t - prev_track_time
-                        if dt > self.track_loss_gap_thresh_s:
-                            # Too large gap: count as loss and re-acquisition
-                            track_losses += 1
-                            track_reacquisitions += 1
-                        elif cur_id != prev_track_id:
+                        if cur_id != prev_track_id:
                             # Immediate change while tracking continuously -> ID Switch!
                             id_switches += 1
 
@@ -201,9 +286,11 @@ class TrackingMetricCalculator:
                         # Track lost during convergence attempt, abort this event
                         break
                     if dist_j <= self.conv_inner_thresh:
-                        # Check hold duration
+                        # Check hold duration: require complete window of conv_hold_frames
+                        if j + self.conv_hold_frames > n_samples:
+                            break
                         hold_ok = True
-                        for k in range(j, min(j + self.conv_hold_frames, n_samples)):
+                        for k in range(j, j + self.conv_hold_frames):
                             s_k = samples[k]
                             d_k = s_k.get('error_dist')
                             if d_k is None or math.isnan(d_k) or d_k > self.conv_inner_thresh:
@@ -235,21 +322,27 @@ class TrackingMetricCalculator:
         # -------------------------------------------------------------
         # 5. Gimbal Dynamics & Limits
         # -------------------------------------------------------------
-        yaws = [s['gimbal_yaw'] for s in samples if s.get('gimbal_yaw') is not None]
-        pitches = [s['gimbal_pitch'] for s in samples if s.get('gimbal_pitch') is not None]
-        timestamps = [s['timestamp'] for s in samples]
+        valid_yaws = [float(s['gimbal_yaw']) for s in samples if s.get('gimbal_yaw') is not None and not math.isnan(s['gimbal_yaw'])]
+        valid_pitches = [float(s['gimbal_pitch']) for s in samples if s.get('gimbal_pitch') is not None and not math.isnan(s['gimbal_pitch'])]
 
         yaw_rates: List[float] = []
         pitch_rates: List[float] = []
 
         for idx in range(1, len(samples)):
-            dt = timestamps[idx] - timestamps[idx - 1]
+            s_prev = samples[idx - 1]
+            s_curr = samples[idx]
+            dt = s_curr['timestamp'] - s_prev['timestamp']
             if dt > 0.001:
-                # Wrap-around safe yaw delta
-                dyaw = abs(self.wrap_angle_rad(yaws[idx] - yaws[idx - 1]))
-                dpitch = abs(pitches[idx] - pitches[idx - 1])
-                yaw_rates.append(math.degrees(dyaw / dt))
-                pitch_rates.append(math.degrees(dpitch / dt))
+                y_prev = s_prev.get('gimbal_yaw')
+                y_curr = s_curr.get('gimbal_yaw')
+                p_prev = s_prev.get('gimbal_pitch')
+                p_curr = s_curr.get('gimbal_pitch')
+                if y_prev is not None and y_curr is not None and not math.isnan(y_prev) and not math.isnan(y_curr):
+                    dyaw = abs(self.wrap_angle_rad(y_curr - y_prev))
+                    yaw_rates.append(math.degrees(dyaw / dt))
+                if p_prev is not None and p_curr is not None and not math.isnan(p_prev) and not math.isnan(p_curr):
+                    dpitch = abs(p_curr - p_prev)
+                    pitch_rates.append(math.degrees(dpitch / dt))
 
         if len(yaw_rates) > 0:
             max_yaw_rate = float(np.max(yaw_rates))
@@ -265,22 +358,22 @@ class TrackingMetricCalculator:
             max_pitch_rate = 0.0
             p95_pitch_rate = 0.0
 
-        yaw_range = [math.degrees(min(yaws)), math.degrees(max(yaws))] if len(yaws) > 0 else [0.0, 0.0]
-        pitch_range = [math.degrees(min(pitches)), math.degrees(max(pitches))] if len(pitches) > 0 else [0.0, 0.0]
+        yaw_range = [math.degrees(min(valid_yaws)), math.degrees(max(valid_yaws))] if len(valid_yaws) > 0 else [0.0, 0.0]
+        pitch_range = [math.degrees(min(valid_pitches)), math.degrees(max(valid_pitches))] if len(valid_pitches) > 0 else [0.0, 0.0]
 
         # Gimbal mechanical limit hit counters
         # Pitch limits: 0.0 rad (downward kịch sàn) to 1.047 rad (60 deg tilt)
         # Yaw limits: -3.14 rad to +3.14 rad
-        pitch_limit_hits = sum(1 for p in pitches if p <= 0.01 or p >= 1.04)
-        yaw_limit_hits = sum(1 for y in yaws if abs(abs(y) - math.pi) <= 0.02)
+        pitch_limit_hits = sum(1 for p in valid_pitches if p <= 0.01 or p >= 1.04)
+        yaw_limit_hits = sum(1 for y in valid_yaws if abs(abs(y) - math.pi) <= 0.02)
 
         # -------------------------------------------------------------
         # 6. UAV Stationarity & Altitude Check
         # -------------------------------------------------------------
-        uav_xs = [s['uav_x'] for s in samples if s.get('uav_x') is not None]
-        uav_ys = [s['uav_y'] for s in samples if s.get('uav_y') is not None]
+        uav_xs = [float(s['uav_x']) for s in samples if s.get('uav_x') is not None and not math.isnan(s['uav_x'])]
+        uav_ys = [float(s['uav_y']) for s in samples if s.get('uav_y') is not None and not math.isnan(s['uav_y'])]
         # PX4 uses NED: altitude = -z
-        uav_alts = [-s['uav_z'] for s in samples if s.get('uav_z') is not None]
+        uav_alts = [-float(s['uav_z']) for s in samples if s.get('uav_z') is not None and not math.isnan(s['uav_z'])]
 
         if len(uav_alts) > 0:
             uav_alt_mean = float(np.mean(uav_alts))
@@ -291,34 +384,57 @@ class TrackingMetricCalculator:
             uav_alt_min = float('nan')
             uav_alt_max = float('nan')
 
-        uav_x_drift_cm = float((max(uav_xs) - min(uav_xs)) * 100.0) if len(uav_xs) > 0 else 0.0
-        uav_y_drift_cm = float((max(uav_ys) - min(uav_ys)) * 100.0) if len(uav_ys) > 0 else 0.0
-
-        # UAV tracking usage check: Drift must be small (< 0.35m / 35cm) for pure hover
-        uav_movement_used_for_tracking = "YES" if (uav_x_drift_cm > 40.0 or uav_y_drift_cm > 40.0) else "NO"
+        if len(uav_xs) > 0 and len(uav_ys) > 0:
+            uav_x_drift_cm = float((max(uav_xs) - min(uav_xs)) * 100.0)
+            uav_y_drift_cm = float((max(uav_ys) - min(uav_ys)) * 100.0)
+            uav_movement_used_for_tracking = "YES" if (uav_x_drift_cm > 40.0 or uav_y_drift_cm > 40.0) else "NO"
+        else:
+            uav_x_drift_cm = float('nan')
+            uav_y_drift_cm = float('nan')
+            uav_movement_used_for_tracking = "UNKNOWN"
 
         return {
             'test_name': test_name,
-            'duration_sec': duration_sec,
+            'requested_duration_sec': float(round(requested_duration_sec, 2)),
+            'actual_duration_sec': float(round(actual_duration_sec, 2)),
+            'duration_sec': float(round(actual_duration_sec, 2)),
+            'completion_reason': completion_reason,
             'total_camera_frames': total_frames,
             'processed_frames': processed_frames,
             'unprocessed_frames': unprocessed_frames,
+            'processing_telemetry_unknown_frames': processing_unknown_frames,
             'processing_coverage_pct': float(round(processing_coverage_pct, 2)),
+            'raw_detector_telemetry_available': bool(has_raw_telemetry),
+            'raw_detector_unknown_frames': raw_unknown_frames,
+            'raw_detections_with_person': raw_det_frames,
+            'raw_detector_misses': raw_detector_misses,
+            'raw_detection_rate_pct': float(round(raw_detection_rate_pct, 2)) if raw_detection_rate_pct is not None else None,
+            'raw_processed_person_ratio_pct': float(round(raw_processed_person_ratio_pct, 2)) if raw_processed_person_ratio_pct is not None else None,
+            'tracker_unconfirmed_frames': tracker_unconfirmed,
             'detections_with_person': det_frames,
-            'detector_misses': detector_misses,
+            'tracking_misses': tracking_misses,
+            'detector_misses': tracking_misses,
+            'tracking_output_available_frames': tracking_available_frames,
+            'tracking_output_unknown_frames': total_frames - tracking_available_frames,
             'matching_failures': matching_failures,
+            'matching_timeouts': matching_timeouts,
+            'matching_incomplete_samples': matching_incomplete_samples,
             'processed_frame_person_ratio_pct': float(round(processed_frame_person_ratio_pct, 2)),
-            'camera_stream_person_ratio_pct': float(round(camera_stream_person_ratio_pct, 2)),
+            'camera_stream_person_ratio_pct': float(round(camera_stream_person_ratio_pct, 2)) if camera_stream_person_ratio_pct is not None else None,
             'frames_with_detection': det_frames,
-            'detection_rate_pct': float(detection_rate_pct),
+            'detection_rate_pct': float(detection_rate_pct) if detection_rate_pct is not None else None,
             'frames_with_valid_track': track_frames,
             'track_retention_pct': float(track_retention_pct),
             'track_retention_on_processed_pct': float(round(track_retention_on_processed_pct, 2)),
+            'processing_duration_telemetry_available': bool(has_actual_latencies),
             'min_processing_latency_ms': min_lat,
             'median_processing_latency_ms': med_lat,
             'mean_processing_latency_ms': mean_lat,
             'p95_processing_latency_ms': p95_lat,
             'max_processing_latency_ms': max_lat,
+            'mean_actual_processing_latency_ms': actual_mean_lat,
+            'median_actual_processing_latency_ms': actual_med_lat,
+            'p95_actual_processing_latency_ms': actual_p95_lat,
             'id_switches': int(id_switches),
             'track_losses': int(track_losses),
             'track_reacquisitions': int(track_reacquisitions),
