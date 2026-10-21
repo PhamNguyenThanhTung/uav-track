@@ -9,6 +9,7 @@ import base64
 import sys
 import time
 import signal
+import threading
 from pathlib import Path
 
 
@@ -38,6 +39,7 @@ from uav_perception.telemetry_utils import make_frame_telemetry
 from uav_perception.botsort_adapter import BoTSORTAdapter
 from uav_perception.frame_freshness import ImageFreshnessGuard
 from uav_perception.gpu_inference import CUDAGraphForward
+from uav_perception.clock_metrics import ClockMetrics
 
 
 class YOLODetectorNode(Node):
@@ -65,6 +67,7 @@ class YOLODetectorNode(Node):
         self.declare_parameter('enable_auxiliary_appearance', True)
         self.declare_parameter('enable_guard_debug', False)
         self.declare_parameter('enable_performance_debug', False)
+        self.declare_parameter('enable_lazy_diagnostics', True)
         self.declare_parameter('max_image_age_sec', 0.75)
         self.declare_parameter('camera_watchdog_sec', 1.0)
         if not self.has_parameter('use_sim_time'):
@@ -101,6 +104,7 @@ class YOLODetectorNode(Node):
         self.enable_auxiliary_appearance = bool(self.get_parameter('enable_auxiliary_appearance').value)
         self.enable_guard_debug = bool(self.get_parameter('enable_guard_debug').value)
         self.enable_performance_debug = bool(self.get_parameter('enable_performance_debug').value)
+        self.enable_lazy_diagnostics = bool(self.get_parameter('enable_lazy_diagnostics').value)
         self.use_sim_time = bool(self.get_parameter('use_sim_time').value)
         self.max_image_age_sec = float(self.get_parameter('max_image_age_sec').value)
         self.camera_watchdog_sec = float(self.get_parameter('camera_watchdog_sec').value)
@@ -288,6 +292,11 @@ class YOLODetectorNode(Node):
         self.stat_reid_latencies = []
         self.stat_timer = self.create_timer(
             1.5, self.publish_stats, callback_group=self.perception_group)
+        self.clock_metrics = None
+        if self.enable_performance_debug and self._time_source._clock_sub is not None:
+            sub = self._time_source._clock_sub
+            self.clock_metrics = ClockMetrics(sub.callback)
+            sub.callback = self.clock_metrics
         self.get_logger().info('YOLODetectorNode ready for person tracking.')
 
     @staticmethod
@@ -332,6 +341,7 @@ class YOLODetectorNode(Node):
         if getattr(self, 'performance_pub', None) is not None:
             self._performance_receipt = dict(
                 callback_mono_ns=time.perf_counter_ns(), callback_wall_ns=time.time_ns(),
+                               callback_thread_id=threading.get_native_id(),
                 receive_source_clock_ns=self.get_clock().now().nanoseconds,
                 rmw_received_wall_ns=info.get('received_timestamp', 0),
                 rmw_published_wall_ns=info.get('source_timestamp', 0))
@@ -358,7 +368,8 @@ class YOLODetectorNode(Node):
         stamp_ns = int(source_stamp.sec) * 1_000_000_000 + int(source_stamp.nanosec)
         if performance is not None:
             performance.update(source_stamp_ns=stamp_ns, width=width, height=height,
-                               encoding=msg.encoding)
+                               encoding=msg.encoding, processing_thread_id=threading.get_native_id(),
+                               processing_cpu_start_ns=time.thread_time_ns())
         freshness = self.frame_freshness.inspect(
             stamp_ns,
             self.get_clock().now().nanoseconds,
@@ -455,7 +466,8 @@ class YOLODetectorNode(Node):
         tracker_latency_ms = (time.perf_counter() - t_tracker_start) * 1000.0
         if performance is not None:
             performance.update(tracker_end_mono_ns=time.perf_counter_ns(),
-                               tracker_ms=tracker_latency_ms, **self.tracker.performance)
+                               tracker_ms=tracker_latency_ms,
+                               reid_calls=self.tracker.reid_calls - reid_calls_before, **self.tracker.performance)
         reid_latency_ms = (
             self.tracker.reid_latency_ms
             if self.tracker.reid_calls > reid_calls_before else 0.0
@@ -556,6 +568,7 @@ class YOLODetectorNode(Node):
                                target_accepted=tracked_bbox is not None)
 
         # JPEG diagnostics can be expensive; emit them after controller output.
+        diagnostic_start = time.perf_counter_ns() if performance is not None else 0
         if self.guard_debug_pub is not None:
             if output_freshness.accepted:
                 self._emit_guard_debug(active_tracks, current_time, [d[:4] for d in person_detections],
@@ -563,9 +576,13 @@ class YOLODetectorNode(Node):
             else:
                 self._emit_guard_debug([], source_now, None,
                                        getattr(self.tracker, 'last_gmc_warp', np.eye(2, 3)))
+        if performance is not None:
+            performance['guard_diagnostics_ms'] = (time.perf_counter_ns() - diagnostic_start) / 1e6
+        annotation_start = time.perf_counter_ns() if performance is not None else 0
 
         # 7. Render Annotated Image with HUD & Reticle
-        if self.publish_annotated:
+        if self.publish_annotated and (not self.enable_lazy_diagnostics or
+                                      self.annotated_pub.get_subscription_count() > 0):
             vis_img = img_bgr.copy()
 
             # Draw image center crosshair and deadband box
@@ -639,6 +656,8 @@ class YOLODetectorNode(Node):
             out_img.step = width * channels
             out_img.data = bgr_to_ros_bytes(vis_img, msg.encoding)
             self.annotated_pub.publish(out_img)
+        if performance is not None:
+            performance['annotation_publish_ms'] = (time.perf_counter_ns() - annotation_start) / 1e6
 
         processing_ms = (time.perf_counter() - t0) * 1000.0
         self.telemetry_pub.publish(make_frame_telemetry(
@@ -650,6 +669,13 @@ class YOLODetectorNode(Node):
             self._emit_performance_debug(performance)
 
     def _emit_performance_debug(self, event):
+        if 'callback_mono_ns' in event:
+            event['image_callback_ms'] = (time.perf_counter_ns() - event['callback_mono_ns']) / 1e6
+        if 'processing_cpu_start_ns' in event:
+            event['processing_thread_cpu_ms'] = (time.thread_time_ns() - event.pop('processing_cpu_start_ns')) / 1e6
+        metrics = getattr(self, 'clock_metrics', None)
+        if metrics is not None:
+            event.update(metrics.snapshot())
         event.update(received=self.total_received, processed=self.total_processed,
                      dropped=self.total_dropped, stale=self.total_stale)
         message = String()

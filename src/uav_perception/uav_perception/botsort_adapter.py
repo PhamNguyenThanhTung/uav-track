@@ -79,7 +79,23 @@ class BoTSORTAdapter:
         encoder._crop_detections = measured('reid_crop_ms', encoder._crop_detections)
         encoder._crops_to_tensor = measured('reid_preprocess_ms', encoder._crops_to_tensor)
         backend = encoder.model.backend
-        backend.forward = measured('reid_backend_ms', backend.forward)
+        forward = backend.forward
+        backend_start = [0]
+        measured_forward = measured('reid_backend_ms', forward)
+        def timed_forward(*args, **kwargs):
+            backend_start[0] = time.perf_counter_ns()
+            return measured_forward(*args, **kwargs)
+        backend.forward = timed_forward
+        session = backend.session
+        run = session.run
+        def timed_run(*args, **kwargs):
+            started = time.perf_counter_ns()
+            self.performance['reid_input_copy_ms'] = self.performance.get('reid_input_copy_ms', 0.) + (
+                started - backend_start[0]) / 1e6
+            return measured('reid_ort_ms', run)(*args, **kwargs)
+        session.run = timed_run
+        session.run_with_iobinding = measured('reid_ort_ms', session.run_with_iobinding)
+        encoder.model.from_numpy = measured('reid_output_copy_ms', encoder.model.from_numpy)
 
     @classmethod
     def from_config(cls, config_path: str | Path, device: str) -> "BoTSORTAdapter":

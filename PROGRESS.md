@@ -1,5 +1,37 @@
 # Project Progress
 
+## Perception concurrency/ReID experiments — 2026-10-16
+
+- Tested clock rates, one latest-frame perception worker, lazy/async diagnostics and ReID I/O binding separately with repeated fixed-image runs. Only lazy annotation without subscribers is retained, default-on and reversible with `enable_lazy_diagnostics=false`; viewer-on rendering and guard JPEG policy remain unchanged.
+- Controlled headless baseline **12.36/11.59 FPS** → lazy **17.83/15.18 FPS**. With an image subscriber, lazy **10.94 FPS** stays within the **10.93–11.17 FPS** baseline range. The perception worker drops to **8.67/8.77 FPS**; async diagnostics and I/O binding have no repeatable primary-metric benefit and are rolled back.
+- Matching headless full simulations: **8.42→10.63 AI FPS**, decision-age p95 **256→240 ms**; clean landing/shutdown. Camera remains about 29 FPS. The ≥10 FPS reference is reached, but 12 FPS and <200 ms are not; these full windows are observational, supported by controlled headless gains.
+- Native clock is **250 Hz/source second**, about 239–240 Hz/wall second; node services about 164–174 callbacks/s. Lowering the benchmark clock reduces scheduling overhead, but production clock/executor are unchanged. Native GMC remains about 3/6 ms median/p95; extra resize rejected.
+- Redundant ReID device/host transfers are real, but I/O binding gives no stable ROS gain despite exact 100-frame behavioral equivalence. A separate batch 2+1→3 probe shows a large ORT/group/shape interaction; a public encoder-cache prototype preserves 100-frame decisions but changes embedding values, and the standard fixed input is already batched. No ReID optimization is promoted.
+- Final **187 tests PASS** with actual CUDA/ReID. Guard replay: **1,641→2,182 recorded inputs**, zero mismatches/wrong/unknown accepted targets. Independent observer accepts **173/1,551→395/2,093** joined frames; continuity remains **FAIL**, including weak long re-entry. No overall tracking PASS is claimed.
+- Build/install comparison (11 Python modules), dependency/XML checks, critical-package **13,894 RECORD hashes**, active model hashes, ROS rclpy verification and external tracked PX4 state PASS. No third-party edits, new dependencies, model/policy/controller/scenario/DDS changes, delegation or commit.
+
+See [concurrency and ReID experiments](docs/performance/perception_concurrency_reid_experiments.md), with all trial tables, p50/p95/max/resource evidence, rejected sources, replay coverage limits and final review.
+
+## External environment audit — 2026-10-16
+
+- Independent integrity checks found no remaining third-party source patch or active-model modification. GPU ONNX Runtime 1.30.0 is the only ORT distribution; 28,712 installed Python file hashes match, package inventory is unchanged, and ROS/system checksum checks are clean.
+- Retained the intentional project Fast DDS profile, CUDA Graph, default-off instrumentation and official Ponytail tooling. Added a project-owned auto-install guard and one regression to prevent the preceding Ultralytics CPU-package overwrite from recurring at normal UAV startup.
+- Verification: **183 tests PASS** with CUDA/ReID enabled; actual ReID profile contains CUDA kernel execution; project build, 12 source/install byte comparisons, XML parse and isolated node/profiler-topic startup PASS. No package reinstall, model replacement, FPS optimization or commit in this audit.
+- Environment is a verified baseline for a separate ReID runtime task, subject to the local-receipt and ReID historical-hash limits documented in the [environment audit](docs/performance/external_environment_audit.md). Tracking continuity remains FAIL independently.
+
+## Latest perception FPS and latency audit — 2026-10-16
+
+- Installed the official Ponytail 5.2.0 plugin and upstream skill. Added opt-in stage timing for camera receipt, YOLO, tracker/GMC/ReID, guard, output, callback completion, resource use and actual Qt paint events.
+- On a fixed 30 FPS camera input, the stock Fast DDS repeat processed 8.49 FPS; the selected larger image transport + CUDA Graph processed **11.34 FPS**. Decision-age p95 improved **186→112 ms**; whole-callback p95 improved **167→110 ms**. CUDA Graph inference p50 improved **36.7→15.0 ms** without changing weights or precision.
+- The selected settings completed the full 236-second Gazebo/PX4 scenario: source 29.24 FPS, raw ROS receive 29.22 FPS, perception 7.96 FPS, decision-age p95 260 ms, CUDA Graph active on all 1,510 profiled frames, clean landing and shutdown. The independent observer saw 7.03 FPS over its longer capture. Guard debug was enabled to support exact replay.
+- Gazebo GUI was measured during source seconds 123–141. AI remained around 7.1–7.3 FPS; simulator RTF dipped slightly while the GUI process used about 72% of one core and 566 MiB. A separate Qt view painted 10.12 unique frames/s. These short display windows are observational.
+- Final suite **182 PASS** with CUDA and real ReID enabled. Build, dependency, XML and syntax checks pass. Full-run guard replay has zero mismatches and zero wrong/unknown accepted identities. Target continuity remains **FAIL**: only 154 of 1,438 observer frames accepted the enrolled target.
+- Current performance verdict: **PASS for the measured transport/runtime optimization; existing tracking continuity remains FAIL**. Re-ID's CPU/GPU transfers and long tail are the next runtime candidate; no model, identity policy, controller, scenario, or dependency changed.
+
+See the complete [perception and video pipeline audit](docs/performance/perception_video_pipeline_audit.md) and its captured artifacts under `evaluation/results/runs/perception_video_audit_20261015T080217Z/`.
+
+## Previously recorded baseline — 2026-10-15
+
 Production is configured as YOLO26n → BoT-SORT + ORB GMC + pretrained CUDA ONNX Re-ID → TargetIdentityManager → gimbal. **Tracking acceptance remains FAIL.** The latest retained correction rejects results that expire during detector/tracker processing, keeps ROS source time updating during inference, and preserves GMC across rejected frames without identity learning. GPU access is restored and verified. Final suite: **175 PASS**, including CUDA and actual ROS timing integration. Full simulation completes and lands, but only **11/339 recorded guard events** accept a target. No body-following is implemented.
 
 ## Latest source-age correction and runtime — 2026-10-15

@@ -12,10 +12,21 @@ The adapter rejects malformed, nonfinite, singular or orientation-reversing GMC 
 
 Image source age is checked on ingress and again after detector/tracker work, before identity learning and gimbal output. Late results publish an empty target and hold the gimbal setpoint; their GMC still advances existing motion history without teaching identity. Two executor threads let `/clock` advance during inference, while images, target reset and the watchdog share one serialized callback group. A paused simulation does not expire an image by wall time alone. See [source-age verification](../../docs/tracking/source_age_verification_2026-10-15.md); tracking continuity remains below acceptance.
 
+## Performance options and measurements
+
+`enable_cuda_graph` defaults to true on CUDA and replays the existing YOLO forward pass at the warmed camera tensor shape. Unsupported shapes or prediction modes permanently fall back to eager inference. `enable_performance_debug` defaults to false; when enabled it publishes `/yolo/performance` stage timings without changing `/yolo/telemetry`. Simulation launchers also accept `TRACKING_CUDA_GRAPH=false` for an eager comparison and `TRACKING_PERFORMANCE_DEBUG=true` for profiling.
+
+`enable_lazy_diagnostics` defaults to true: annotation/HUD rendering and image publication are skipped when `/yolo/annotated_image` has no subscribers. A connected viewer receives the original image rendering. Set it to false for the previous always-render behavior. Guard JPEG remains controlled by the existing `enable_guard_debug` option. No perception or diagnostics worker is used. The [concurrency/ReID experiments](../../docs/performance/perception_concurrency_reid_experiments.md) record the controlled comparisons and rejected candidates.
+
+Performance debugging also measures actual native `/clock` callback counts/CPU/thread activity and separates guard JPEG, annotation and ReID transfer/backend stages. Production clock frequency is unchanged.
+
+The transport profile in `config/fastdds_images.xml` increases Fast DDS capacity for the 1280×720 RGB image payload. The launchers use it by default and respect `FASTDDS_DEFAULT_PROFILES_FILE` or `FASTRTPS_DEFAULT_PROFILES_FILE` overrides. See the measured [perception/video pipeline audit](../../docs/performance/perception_video_pipeline_audit.md) for source, receive, processing and display FPS, latency percentiles, controlled comparisons and limitations.
+
 ## Modules
 
 - `yolo_detector.py`: ROS 2 image subscriber, YOLO inference, BoT-SORT integration, freshness checks, target manager, gimbal controller, HUD, and latency telemetry.
 - `botsort_adapter.py`: validates runtime backends and maps only activated current-frame tracks to original detector bbox/confidence by detection index; records ReID/GMC timing and fallback counts.
+- `clock_metrics.py`: opt-in measurement of the existing ROS time-source callback, preserving native clock handling.
 - `frame_freshness.py`: rejects stale or non-monotonic camera frames and detects a stalled stream while respecting simulated-clock pauses.
 - `target_identity.py`: preserves one logical person across tracker-ID changes; maintains a protected appearance anchor, bounded references, short motion history, and optional HSV torso cue; states are `SEARCHING`, `TRACKING`, `UNCERTAIN`, `PREDICTING`, and `LOST`. Reacquisition needs strong identity evidence, clean stable crops, and three fresh confirmations. A clock rewind invalidates the session until reset.
 - `gimbal_controller.py`: EMA smoothing, deadband, rate limits, and joint limits for yaw/pitch.
@@ -32,6 +43,8 @@ From the project directory, install/update the perception environment with:
 ```
 
 The runtime requires an NVIDIA driver and CUDA-capable ONNX Runtime provider for pretrained ReID. The detector uses `yolo26n.pt` on the configured device (default `cuda:0`).
+
+Importing the UAV package sets `YOLO_AUTOINSTALL=false` before Ultralytics loads, so normal node startup cannot install or replace Python dependencies. Test collection applies the same protection. Install dependencies explicitly; embedded hosts that import Ultralytics first must set this variable before that import. The [external environment audit](../../docs/performance/external_environment_audit.md) records package/model integrity, retained external settings and verification limits.
 
 ## Run
 
@@ -60,7 +73,7 @@ The lateral maneuver uses a simulation-only PX4 setpoint stream after hover, wit
 source /opt/ros/jazzy/setup.bash
 source ../software/ros2_ws/install/setup.bash
 PYTHONPATH="$PYTHONPATH:src/uav_perception:evaluation" \
-  ../software/venvs/yolo26/bin/python -m pytest -q src/uav_perception/test evaluation
+  ../software/venvs/yolo26/bin/python -m pytest -q src/uav_perception/test evaluation/test_*.py
 ```
 
 The pretrained GPU ReID smoke test is opt-in and can be run with `RUN_BOTSORT_REID_RUNTIME=1`. Set `YOLO_AUTOINSTALL=false` during verification to prevent Ultralytics from changing dependencies when CUDA is unavailable.

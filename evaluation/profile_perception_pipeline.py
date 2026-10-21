@@ -18,8 +18,10 @@ from rclpy.node import Node
 from rclpy.qos import QoSProfile, ReliabilityPolicy
 from sensor_msgs.msg import Image
 from std_msgs.msg import String
+from rosgraph_msgs.msg import Clock
 import gz.transport13
 from gz.msgs10.image_pb2 import Image as GzImage
+from gz.msgs10.clock_pb2 import Clock as GzClock
 
 
 def percentiles(values):
@@ -40,7 +42,9 @@ def frame_metrics(row):
     def wall(end, start):
         return (row[end] - row[start]) / 1e6 if row.get(end) and row.get(start) else None
     result = {k: row.get(k) for k in ('image_decode_ms', 'yolo_ms', 'tracker_ms', 'reid_ms',
-              'gmc_ms', 'reid_crop_ms', 'reid_preprocess_ms', 'reid_backend_ms', 'guard_ms', 'processing_ms')}
+              'gmc_ms', 'reid_crop_ms', 'reid_preprocess_ms', 'reid_backend_ms', 'guard_ms', 'processing_ms',
+              'guard_diagnostics_ms', 'annotation_publish_ms', 'processing_thread_cpu_ms',
+              'image_callback_ms', 'clock_last_queue_ms', 'reid_input_copy_ms', 'reid_ort_ms', 'reid_output_copy_ms')}
     result.update(dds_transport_ms=wall('rmw_received_wall_ns', 'rmw_published_wall_ns'),
                   queue_wait_wall_ms=wall('callback_wall_ns', 'rmw_received_wall_ns'),
                   callback_to_processing_ms=wall('processing_start_mono_ns', 'callback_mono_ns'),
@@ -65,10 +69,12 @@ def main():
     parser.add_argument('--warmup-frames', type=int, default=10)
     parser.add_argument('--stop-source-time', type=float)
     parser.add_argument('--perception-pid', type=int)
+    parser.add_argument('--gz-clock-topic')
     parser.add_argument('--display', action='store_true')
+    parser.add_argument('--no-annotated-observer', action='store_true')
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
-    events = {k: [] for k in ('source', 'ros_camera_observer', 'display_delivery', 'paint', 'performance', 'resource')}
+    events = {k: [] for k in ('source', 'clock', 'gz_clock', 'diagnostics', 'ros_camera_observer', 'display_delivery', 'paint', 'performance', 'resource')}
     latest = [None]
     stop = threading.Event()
     def finish(*_args): stop.set()
@@ -81,7 +87,12 @@ def main():
     def source(msg):
         events['source'].append((time.monotonic(), int(msg.header.stamp.sec)*1_000_000_000+int(msg.header.stamp.nsec)))
     assert source_node.subscribe(GzImage, '/custom_x500/camera/image_raw', source)
+    if args.gz_clock_topic:
+        assert source_node.subscribe(GzClock, args.gz_clock_topic, lambda m: events['gz_clock'].append(
+            (time.monotonic(), m.sim.sec * 1_000_000_000 + m.sim.nsec)))
     qos = QoSProfile(depth=1, reliability=ReliabilityPolicy.BEST_EFFORT)
+    node.create_subscription(Clock, '/clock', lambda m: events['clock'].append(
+        (time.monotonic(), m.clock.sec * 1_000_000_000 + m.clock.nanosec)), qos)
     node.create_subscription(Image, '/custom_x500/camera/image_raw',
                              lambda data: events['ros_camera_observer'].append((time.monotonic(), cdr_stamp(data))), qos, raw=True)
     log = (args.output_dir/'performance.jsonl').open('w', buffering=1)
@@ -96,6 +107,8 @@ def main():
         if args.stop_source_time is not None and row['source_stamp_ns'] >= args.stop_source_time*1e9:
             stop.set()
     node.create_subscription(String, '/yolo/performance', performance, 100)
+    node.create_subscription(String, '/yolo/diagnostics_performance', lambda m: events['diagnostics'].append(
+        (time.monotonic(), json.loads(m.data))), 100)
     if args.display:
         from PyQt5.QtWidgets import QApplication, QWidget
         from PyQt5.QtGui import QImage, QPainter, QColor
@@ -124,7 +137,7 @@ def main():
             viewer.update()
             if stop.is_set(): app.quit()
         timer = QTimer(); timer.timeout.connect(refresh); timer.start(16)
-    else:
+    elif not args.no_annotated_observer:
         node.create_subscription(Image, '/yolo/annotated_image',
                                  lambda data: events['display_delivery'].append((time.monotonic(), cdr_stamp(data))), qos, raw=True)
     def resource():
@@ -137,6 +150,12 @@ def main():
                     ticks = int(fields[11])+int(fields[12]); rss = int(fields[21])*os.sysconf('SC_PAGE_SIZE')
                     if previous: row['perception_cpu_pct']=100*(ticks-previous[1])/(os.sysconf('SC_CLK_TCK')*(row['mono']-previous[0]))
                     previous=(row['mono'],ticks); row['perception_rss_bytes']=rss
+                    row['thread_cpu_ticks'] = {}
+                    for task in (path/'task').iterdir():
+                        try:
+                            raw_task=(task/'stat').read_text(); f=raw_task[raw_task.rfind(')')+2:].split()
+                            row['thread_cpu_ticks'][task.name] = int(f[11])+int(f[12])
+                        except (FileNotFoundError, ProcessLookupError): pass
                 except (FileNotFoundError, ProcessLookupError): pass
             try:
                 gpu = subprocess.run(['nvidia-smi','--query-gpu=utilization.gpu,memory.used,power.draw','--format=csv,noheader,nounits'],capture_output=True,text=True,timeout=3)
@@ -178,6 +197,14 @@ def main():
         source_window_ns=[min(stamps),max(stamps)] if stamps else None,
         graph_active_frames=sum(bool(r.get('cuda_graph_active')) for r in rows),
         reid_crops=dict(Counter(r.get('reid_crops',0) for r in rows)))
+    summary['diagnostics_worker_ms'] = {key: percentiles([r.get(key) for _, r in streams['diagnostics']])
+        for key in ('diagnostics_queue_ms', 'guard_diagnostics_ms', 'annotation_publish_ms')}
+    summary['diagnostics_replaced'] = max([r.get('diagnostics_replaced', 0) for r in rows], default=0)
+    if len(rows)>1 and 'clock_callbacks' in rows[0]:
+        clock_wall=(rows[-1]['complete_mono_ns']-rows[0]['complete_mono_ns'])/1e9
+        summary['perception_clock_callback_fps']=(rows[-1]['clock_callbacks']-rows[0]['clock_callbacks'])/clock_wall
+        summary['clock_callback_cpu_pct']=100*(rows[-1]['clock_callback_cpu_ns']-rows[0]['clock_callback_cpu_ns'])/1e9/clock_wall
+        summary['clock_callback_threads']=rows[-1].get('clock_executor_threads')
     (args.output_dir/'summary.json').write_text(json.dumps(summary,indent=2)+'\n')
     (args.output_dir/'streams.json').write_text(json.dumps({k:v for k,v in streams.items() if k!='performance'})+'\n')
     (args.output_dir/'resources.json').write_text(json.dumps(events['resource'])+'\n')

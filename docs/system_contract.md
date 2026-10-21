@@ -8,7 +8,7 @@ This document specifies the exact active ROS 2 and Gazebo interfaces, message ty
 
 | Topic Name | Message Type | Direction | QoS Profile | Frequency |
 |---|---|---|---|---|
-| `/custom_x500/camera/image_raw` | `sensor_msgs/msg/Image` | GZ -> ROS 2 | Best Effort, Volatile, Depth 1 | ~30 Hz nominal in simulation time; GPU rendering verified at ~30 wall FPS in Gazebo, ROS delivery varies with subscriber QoS/load (20 best-effort / 28 reliable in isolated tests) |
+| `/custom_x500/camera/image_raw` | `sensor_msgs/msg/Image` | GZ -> `ros_gz_bridge` -> ROS 2 | Bridge publisher: RELIABLE, VOLATILE, KEEP_LAST depth 10; perception reader: BEST_EFFORT, VOLATILE, KEEP_LAST depth 1 | 30 Hz configured; measured native source about 29 FPS. The bridge parameter query reports depth 10; graph endpoint discovery itself reports depth UNKNOWN. |
 | `/custom_x500/camera/camera_info`| `sensor_msgs/msg/CameraInfo` | GZ -> ROS 2 | Best Effort, Volatile, Depth 1 | Matches image stream |
 
 - **Image Dimensions**: 1280 (width) × 720 (height)
@@ -46,12 +46,15 @@ This document specifies the exact active ROS 2 and Gazebo interfaces, message ty
 - The evaluator correlates camera images, raw detections, tracker output, and processing telemetry using exact source seconds/nanoseconds. An absent component remains unknown.
 
 - `/yolo/reset_target` (`std_srvs/srv/Trigger`) explicitly resets target identity. The next fresh person observation can be acquired after reset.
+- `/yolo/performance` (`std_msgs/msg/String`, reliable depth 10) is optional and disabled by default. `enable_performance_debug=true` adds source/receipt, YOLO, tracker/ReID/GMC, guard, publish and callback-completion timestamps and durations. It does not change the existing five-value `/yolo/telemetry` message.
 - Ordinary `LOST` preserves bounded identity references and can recover the same logical target after three fresh stable identity confirmations, including a new tracker ID. Appearance ambiguity produces no bbox. Clock rewind/invalid source time invalidates the session and requires reset.
+- `enable_lazy_diagnostics=true` skips annotation drawing/encoding/publication while the annotated-image publisher has no subscribers. Its default is true; false restores always-render behavior. Connected subscribers receive the original source header/encoding and HUD. This does not change target output, guard JPEG policy, source-time checks or the serialized tracker path. See the [concurrency/ReID experiments](performance/perception_concurrency_reid_experiments.md).
 - With `enable_guard_debug=true`, `/yolo/guard_debug` (`std_msgs/msg/String`, reliable depth 10) provides optional JSON candidate inputs, gate/transition diagnostics, and JPEG data for local evaluation/replay. It is absent by default; evaluation labels are never supplied to the manager.
 - With `enable_gimbal_tracking=false`, target detection and identity validation continue, but no gimbal commands are issued. Annotated images retain the input image encoding.
 - The production tracker is configured in `src/uav_perception/config/botsort.yaml`; startup fails if ORB GMC, the pretrained ReID encoder, or CUDAExecutionProvider is unavailable. Image timestamps are checked against ROS time, and the camera watchdog uses monotonic receipt time plus source-clock age.
 - Source-clock age is rechecked after detector/tracker processing and before target learning/output, using the existing `max_image_age_sec` budget (default 0.75 s). An expired result emits an empty target and no gimbal update; raw detector output and processing telemetry retain the original image stamp. Its GMC projects existing history without learning a target or replacing the last real manager image timestamp. Optional guard-debug records it as a watchdog event carrying that GMC.
 - The node uses two executor threads. Image processing, explicit target reset and the statistics/watchdog timer share one mutually exclusive callback group; `/clock` stays in the default group so it can update during inference. Source time remains authoritative when simulation is paused. JPEG guard diagnostics are emitted after target/controller output.
+- The package installs `config/fastdds_images.xml`, increasing Fast DDS shared-memory message capacity to 4 MiB for the camera sample (about 2.76 MB) and the shared segment to 64 MiB. The simulation launchers select it by default before bridge/node startup and respect explicit `FASTDDS_DEFAULT_PROFILES_FILE` or `FASTRTPS_DEFAULT_PROFILES_FILE` overrides. The measured image transport and perception timing are documented in the [pipeline audit](performance/perception_video_pipeline_audit.md).
 
 ---
 
