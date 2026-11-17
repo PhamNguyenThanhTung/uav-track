@@ -24,7 +24,8 @@ The transport profile in `config/fastdds_images.xml` increases Fast DDS capacity
 
 ## Modules
 
-- `yolo_detector.py`: ROS 2 image subscriber, YOLO inference, BoT-SORT integration, freshness checks, target manager, gimbal controller, HUD, and latency telemetry.
+- `perception_node.py`: ROS 2 image subscriber, YOLO inference, BoT-SORT integration, freshness checks, target manager, gimbal controller, HUD, and latency telemetry.
+- `yolo_detector.py`: Backward-compatible alias and CLI shim for `perception_node.py`.
 - `botsort_adapter.py`: validates runtime backends and maps only activated current-frame tracks to original detector bbox/confidence by detection index; records ReID/GMC timing and fallback counts.
 - `clock_metrics.py`: opt-in measurement of the existing ROS time-source callback, preserving native clock handling.
 - `frame_freshness.py`: rejects stale or non-monotonic camera frames and detects a stalled stream while respecting simulated-clock pauses.
