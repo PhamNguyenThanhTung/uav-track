@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Check E/F physical-exit scenarios using color visibility and identity logs."""
+"""Check E/F physical-exit scenarios using color visibility and identity logs.
+
+NOTE: This script is archived and intended for historical DeepSORT evaluation data.
+It requires legacy run artifacts and observation logs.
+"""
 import argparse
 import csv
 import json

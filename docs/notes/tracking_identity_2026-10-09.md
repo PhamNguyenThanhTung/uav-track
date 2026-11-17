@@ -61,8 +61,8 @@ Chạy từ thư mục `project`:
 ```bash
 TRACKING_PROFILE=guarded TRACKING_WORLD=tracking_3_people_reentry_test TRACKING_STOP_SIM_TIME=234 ./simulation/run_tracking_3_people_test.sh
 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 ../software/venvs/yolo26/bin/python evaluation/replay_tracking_identity.py evaluation/results/runs/<run>
-python3 evaluation/check_tracking_reentry.py evaluation/results/runs/<run>
-python3 evaluation/render_identity_comparison.py evaluation/results/runs/<run>
+python3 evaluation/archive/deepsort/check_tracking_reentry.py evaluation/results/runs/<run>
+python3 evaluation/archive/deepsort/render_identity_comparison.py evaluation/results/runs/<run>
 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 ../software/venvs/yolo26/bin/python -m unittest discover -s evaluation -p test_tracking_identity_candidate.py -v
 ```
 

@@ -81,7 +81,7 @@ The observed rate and p95 latency do not establish a 30 Hz control loop. The cur
 - Deleted exploratory and superseded run directories from this migration after confirming no references; retained only the final run evidence at `evaluation/results/runs/tracking_3_people_20261014T090706Z`.
 - Removed the accidental YOLO weight cache under the project-local literal `~` directory. The runtime cache remains outside the repository; no model weights or generated videos were added to the project.
 - Historical review notes remain; they describe earlier runs and may mention DeepSORT.
-- `docs/project_structure_audit.md` is labeled as a pre-migration snapshot because earlier reviews cite it; current status is maintained here and in `PROGRESS.md`.
+- `docs/archive/pre-botsort/project_structure_audit.md` is preserved as a pre-migration snapshot because earlier reviews cite it; current status is maintained here and in `PROGRESS.md`.
 
 ## Known limitations and recommendation
 

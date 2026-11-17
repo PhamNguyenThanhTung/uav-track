@@ -61,8 +61,14 @@ if [[ ! -f "$YOLO_VENV/bin/activate" ]]; then
     echo "YOLO virtual environment not found at: $YOLO_VENV" >&2
     exit 1
 fi
-if ! command -v cmd.exe >/dev/null 2>&1 || ! command -v wsl.exe >/dev/null 2>&1; then
-    echo "This launcher opens tabs through Windows Terminal from WSL." >&2
+IS_WSL=false
+IS_GNOME=false
+if command -v cmd.exe >/dev/null 2>&1 && command -v wsl.exe >/dev/null 2>&1 && [[ -n "${WSL_DISTRO_NAME:-}" ]]; then
+    IS_WSL=true
+elif command -v gnome-terminal >/dev/null 2>&1; then
+    IS_GNOME=true
+else
+    echo "This launcher requires Windows Terminal (under WSL) or gnome-terminal." >&2
     exit 1
 fi
 
@@ -73,11 +79,6 @@ source "$YOLO_VENV/bin/activate"
 cd "$PROJECT_DIR"
 colcon build --packages-select uav_perception
 
-if [[ -z "${WSL_DISTRO_NAME:-}" ]]; then
-    echo "WSL_DISTRO_NAME is not set; cannot select the current WSL distro." >&2
-    exit 1
-fi
-
 open_tab() {
     local title="$1"
     local mode="$2"
@@ -87,14 +88,18 @@ open_tab() {
     printf -v script_arg '%q' "$PROJECT_DIR/launch_phase4a_review.sh"
     terminal_command="exec $script_arg --terminal $mode"
 
-    # -w 0 reuses the most recently active Windows Terminal window.
-    local windows_command_dir
-    windows_command_dir="$(dirname -- "$(command -v cmd.exe)")"
-    (
-        cd "$windows_command_dir"
-        cmd.exe /c wt.exe -w 0 new-tab --title "$title" \
-            wsl.exe -d "$WSL_DISTRO_NAME" -- bash -lc "$terminal_command"
-    )
+    if [[ "$IS_WSL" == "true" ]]; then
+        # -w 0 reuses the most recently active Windows Terminal window.
+        local windows_command_dir
+        windows_command_dir="$(dirname -- "$(command -v cmd.exe)")"
+        (
+            cd "$windows_command_dir"
+            cmd.exe /c wt.exe -w 0 new-tab --title "$title" \
+                wsl.exe -d "$WSL_DISTRO_NAME" -- bash -lc "$terminal_command"
+        )
+    elif [[ "$IS_GNOME" == "true" ]]; then
+        gnome-terminal --tab --title="$title" -- bash -lc "$terminal_command"
+    fi
 }
 
 echo "[2/4] Opening the Gazebo + PX4 simulation tab..."

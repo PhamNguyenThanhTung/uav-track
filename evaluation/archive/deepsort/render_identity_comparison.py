@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Render paired identities from the same raw camera frames, without GT labels."""
+"""Render paired identities from the same raw camera frames, without GT labels.
+
+NOTE: This script is archived and intended for historical DeepSORT evaluation data.
+It requires legacy run artifacts (observations.npz, identity_comparison/{mode}_tracks.csv).
+"""
 import argparse
 import csv
 from collections import defaultdict

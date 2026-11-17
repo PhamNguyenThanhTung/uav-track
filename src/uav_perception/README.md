@@ -48,12 +48,15 @@ Importing the UAV package sets `YOLO_AUTOINSTALL=false` before Ultralytics loads
 
 ## Run
 
+From repository root:
 ```bash
+# Order of sourcing: activate virtualenv first so ROS 2 environment appends cleanly to PYTHONPATH
+source ../software/venvs/yolo26/bin/activate
 source /opt/ros/jazzy/setup.bash
 source ../software/ros2_ws/install/setup.bash
-source ../software/venvs/yolo26/bin/activate
 source install/setup.bash
-python -m uav_perception.yolo_detector --ros-args -p use_sim_time:=true
+
+python3 -m uav_perception.yolo_detector --ros-args -p use_sim_time:=true
 ```
 
 The ROS-Gazebo bridge must publish `/clock` from the active world and provide the configured camera topic before starting the node.
@@ -69,11 +72,13 @@ The lateral maneuver uses a simulation-only PX4 setpoint stream after hover, wit
 
 ## Tests
 
+From repository root:
 ```bash
+source ../software/venvs/yolo26/bin/activate
 source /opt/ros/jazzy/setup.bash
 source ../software/ros2_ws/install/setup.bash
-PYTHONPATH="$PYTHONPATH:src/uav_perception:evaluation" \
-  ../software/venvs/yolo26/bin/python -m pytest -q src/uav_perception/test evaluation/test_*.py
+PYTHONPATH="$PYTHONPATH:src/uav_perception:src/uav_control:evaluation" \
+  python3 -m pytest -q src/uav_perception/test evaluation/test_*.py
 ```
 
 The pretrained GPU ReID smoke test is opt-in and can be run with `RUN_BOTSORT_REID_RUNTIME=1`. Set `YOLO_AUTOINSTALL=false` during verification to prevent Ultralytics from changing dependencies when CUDA is unavailable.
