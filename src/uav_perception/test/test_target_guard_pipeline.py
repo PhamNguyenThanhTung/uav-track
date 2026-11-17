@@ -6,6 +6,7 @@ from ultralytics.engine.results import Boxes
 
 from uav_perception.frame_freshness import ImageFreshnessGuard
 from uav_perception.target_identity import TargetIdentityManager, TrackingStatus
+from uav_perception.tracking import TrackingPipeline
 from uav_perception.yolo_detector import YOLODetectorNode
 
 
@@ -28,6 +29,7 @@ class _Tracker:
         self.gmc_calls = 0
         self.gmc_non_identity = 0
         self.gmc_fallbacks = 0
+        self.last_gmc_warp = np.eye(2, 3, dtype=np.float32)
         self.reset_calls = 0
 
     def update(self, boxes, image, detections, auxiliary_features=None):
@@ -82,16 +84,20 @@ class _Clock:
 
 def _node_harness(outputs, stamp_now_sec=100.05):
     node = SimpleNamespace()
-    node.model = _Model(Boxes(
+    pipeline = TrackingPipeline.__new__(TrackingPipeline)
+    pipeline.model = _Model(Boxes(
         np.asarray([[10.0, 10.0, 80.0, 90.0, 0.9, 0.0]], dtype=np.float32),
         orig_shape=(100, 100),
     ))
-    node.device_str = "cpu"
-    node.imgsz = 640
-    node.conf_thresh = 0.22
-    node.max_det = 100
-    node.target_classes = [0]
-    node.tracker = _Tracker(outputs)
+    pipeline.device_str = "cpu"
+    pipeline.imgsz = 640
+    pipeline.conf_thresh = 0.22
+    pipeline.max_det = 100
+    pipeline.target_classes = [0]
+    pipeline.enable_performance_debug = False
+    pipeline.enable_auxiliary_appearance = True
+    pipeline.tracker = _Tracker(outputs)
+    node.tracking_pipeline = pipeline
     node.target_manager = TargetIdentityManager(coasting_timeout_sec=2.5)
     node.gimbal_controller = _Gimbal()
     node.frame_freshness = ImageFreshnessGuard(max_age_sec=0.75, receipt_timeout_sec=1.0)
@@ -175,10 +181,27 @@ def test_target_guard_is_the_only_authority_for_bbox_and_gimbal_commands():
     assert node.gimbal_controller.calls == 1
 
 
+def test_raw_detector_output_is_published_before_tracker_update():
+    node = _node_harness([[_observation([1.0, 0.0, 0.0])]])
+    tracker = node.tracking_pipeline.tracker
+    original_update = tracker.update
+    raw_message_counts = []
+
+    def observe_raw_before_tracking(*args, **kwargs):
+        raw_message_counts.append(len(node.raw_detections_pub.messages))
+        return original_update(*args, **kwargs)
+
+    tracker.update = observe_raw_before_tracking
+    YOLODetectorNode.process_frame(node, _image(100.0))
+
+    assert raw_message_counts == [1]
+    assert node.raw_detections_pub.messages[0].header.stamp.sec == 100
+
+
 def test_duplicate_backward_and_stale_frames_do_not_reach_yolo_or_tracker():
     node = _node_harness([[_observation([1.0, 0.0, 0.0])]], stamp_now_sec=100.05)
     YOLODetectorNode.process_frame(node, _image(100.0))
-    assert node.tracker.calls == node.model.calls == 1
+    assert node.tracking_pipeline.tracker.calls == node.tracking_pipeline.model.calls == 1
     initial_detections = len(node.detections_pub.messages)
     initial_gimbal_calls = node.gimbal_controller.calls
 
@@ -188,8 +211,8 @@ def test_duplicate_backward_and_stale_frames_do_not_reach_yolo_or_tracker():
     YOLODetectorNode.process_frame(node, _image(100.1))
 
     assert node.total_stale == 3
-    assert node.model.calls == 1
-    assert node.tracker.calls == 1
+    assert node.tracking_pipeline.model.calls == 1
+    assert node.tracking_pipeline.tracker.calls == 1
     assert len(node.detections_pub.messages) == initial_detections
     assert node.gimbal_controller.calls == initial_gimbal_calls
 
@@ -223,7 +246,7 @@ def test_explicit_target_reset_resets_both_manager_and_tracker():
     returned = YOLODetectorNode.reset_target_callback(node, None, response)
 
     assert returned.success
-    assert node.tracker.reset_calls == 1
+    assert node.tracking_pipeline.tracker.reset_calls == 1
     assert node.target_manager.tracking_status == TrackingStatus.SEARCHING
 
 
@@ -245,7 +268,8 @@ def test_watchdog_time_does_not_make_a_fresh_resumed_source_stamp_look_like_cloc
 @pytest.mark.parametrize('slow_stage', ['detector', 'tracker'])
 def test_result_that_expires_during_inference_cannot_enroll_or_command(slow_stage):
     node = _node_harness([[_observation([1.0, 0.0, 0.0])]])
-    owner, method = (node.model, 'predict') if slow_stage == 'detector' else (node.tracker, 'update')
+    owner, method = ((node.tracking_pipeline.model, 'predict')
+                     if slow_stage == 'detector' else (node.tracking_pipeline.tracker, 'update'))
     original = getattr(owner, method)
 
     def delayed(*args, **kwargs):
@@ -269,21 +293,21 @@ def test_expired_result_preserves_enrollment_and_allows_fresh_source_resumption(
     node = _node_harness([[_observation([1.0, 0.0, 0.0])]] * 5)
     YOLODetectorNode.process_frame(node, _image(100.0))
     anchor = node.target_manager._anchor_feature.copy()
-    original = node.tracker.update
+    original = node.tracking_pipeline.tracker.update
 
     def delayed(*args, **kwargs):
         result = original(*args, **kwargs)
         node.get_clock = lambda: _Clock(103_000_000_000)
         return result
 
-    node.tracker.update = delayed
+    node.tracking_pipeline.tracker.update = delayed
     YOLODetectorNode.process_frame(node, _image(100.1))
     assert node.detections_pub.messages[-1].detections == []
     assert node.gimbal_controller.calls == 1
     assert node.target_manager.last_track_seen_time == 100.0
     np.testing.assert_array_equal(node.target_manager._anchor_feature, anchor)
 
-    node.tracker.update = original
+    node.tracking_pipeline.tracker.update = original
     for source_time in (102.8, 102.9, 103.0):
         YOLODetectorNode.process_frame(node, _image(source_time))
     assert node.target_manager.state.is_active
@@ -297,13 +321,13 @@ def test_slow_wall_processing_does_not_expire_a_paused_simulation(monkeypatch):
     # Simulate a long wall interval while the ROS source clock stays paused.
     monotonic = [10.0]
     monkeypatch.setattr('uav_perception.yolo_detector.time.monotonic', lambda: monotonic[0])
-    original = node.tracker.update
+    original = node.tracking_pipeline.tracker.update
 
     def delayed(*args, **kwargs):
         monotonic[0] += 10.0
         return original(*args, **kwargs)
 
-    node.tracker.update = delayed
+    node.tracking_pipeline.tracker.update = delayed
     YOLODetectorNode.process_frame(node, _image(100.0))
     assert node.gimbal_controller.calls == 1
     assert node.detections_pub.messages[-1].detections
@@ -313,14 +337,14 @@ def test_slow_wall_processing_does_not_expire_a_paused_simulation(monkeypatch):
 def test_clock_rewind_during_inference_invalidates_identity_until_reset():
     node = _node_harness([[_observation([1.0, 0.0, 0.0])]] * 3)
     YOLODetectorNode.process_frame(node, _image(100.0))
-    original = node.tracker.update
+    original = node.tracking_pipeline.tracker.update
 
     def rewound(*args, **kwargs):
         result = original(*args, **kwargs)
         node.get_clock = lambda: _Clock(90_000_000_000)
         return result
 
-    node.tracker.update = rewound
+    node.tracking_pipeline.tracker.update = rewound
     YOLODetectorNode.process_frame(node, _image(100.1))
     assert not node.detections_pub.messages[-1].detections
     assert node.gimbal_controller.calls == 1
@@ -331,15 +355,15 @@ def test_expired_tracker_frame_advances_camera_geometry_without_learning():
     node = _node_harness([[_observation([1.0, 0.0, 0.0])]] * 4)
     YOLODetectorNode.process_frame(node, _image(100.0))
     references = node.target_manager.appearance_reference_count
-    original = node.tracker.update
-    node.tracker.last_gmc_warp = np.array([[1., 0., 40.], [0., 1., 0.]])
+    original = node.tracking_pipeline.tracker.update
+    node.tracking_pipeline.tracker.last_gmc_warp = np.array([[1., 0., 40.], [0., 1., 0.]])
 
     def delayed(*args, **kwargs):
         result = original(*args, **kwargs)
         node.get_clock = lambda: _Clock(101_000_000_000)
         return result
 
-    node.tracker.update = delayed
+    node.tracking_pipeline.tracker.update = delayed
     YOLODetectorNode.process_frame(node, _image(100.1))
     assert not node.detections_pub.messages[-1].detections
     assert node.gimbal_controller.calls == 1

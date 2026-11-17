@@ -15,6 +15,7 @@ from ultralytics.engine.results import Boxes
 from vision_msgs.msg import Detection2DArray
 
 import uav_perception.yolo_detector as detector
+import uav_perception.tracking as tracking
 
 
 def _wait(predicate, timeout=5.0):
@@ -57,8 +58,8 @@ def test_real_source_clock_and_delayed_inference(monkeypatch, slow_stage, clock_
             return [dict(track_id='17', bbox=[10., 10., 80., 90.], confidence=.9,
                          feature=np.array([1., 0.]), appearance_aux=None)]
 
-    monkeypatch.setattr(detector, 'YOLO', lambda _path: Model())
-    monkeypatch.setattr(detector.BoTSORTAdapter, 'from_config', lambda *_args: Tracker())
+    monkeypatch.setattr(tracking, 'YOLO', lambda _path: Model())
+    monkeypatch.setattr(tracking.BoTSORTAdapter, 'from_config', lambda *_args: Tracker())
     # Keep synthetic /clock away from the default-domain simulator.
     rclpy.init(domain_id=83, args=['--ros-args', '-p', 'use_sim_time:=true', '-p', 'device:=cpu',
                      '-p', 'publish_annotated_image:=false',
