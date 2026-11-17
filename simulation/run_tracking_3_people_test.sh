@@ -50,13 +50,40 @@ start() {
     printf '%s\n' "${pid}" >"${OUT}/${name}.pid"
     echo "Started ${name}; log: ${OUT}/${name}.log"
 }
+local_position_sample() {
+    timeout 4 ros2 topic echo --once --qos-durability volatile \
+        /fmu/out/vehicle_local_position_v1 2>/dev/null || true
+}
 local_z() {
     local message
-    message="$(timeout 4 ros2 topic echo --once /fmu/out/vehicle_local_position_v1 2>/dev/null || true)"
+    message="$(local_position_sample)"
     awk '/^[[:space:]]*z:/{print $2; exit}' <<<"${message}"
+}
+epoch_microseconds() {
+    date +%s%6N
+}
+source_timestamp_is_fresh_after_land() {
+    local timestamp="$1" requested_at="$2" now="$3"
+    [[ "${timestamp}" =~ ^[0-9]+$ && "${requested_at}" =~ ^[0-9]+$ ]] || return 1
+    [[ "${now}" =~ ^[0-9]+$ ]] || return 1
+    awk -v timestamp="${timestamp}" -v requested="${requested_at}" -v now="${now}" \
+        'BEGIN { if (timestamp > requested && timestamp <= now + 250000 && now - timestamp <= 1500000) exit 0; exit 1 }'
 }
 cleanup() {
     local status=$?
+    local land_command_status=not_run
+    local is_landed=unknown
+    local arm_state=unknown
+    local z=unknown
+    local land_timestamp=unknown
+    local status_timestamp=unknown
+    local position_timestamp=unknown
+    local telemetry_checked_at_us=unknown
+    local land_request_epoch_us=unknown
+    local land_echo_pid status_echo_pid position_echo_pid
+    local land_message_file="${OUT}/cleanup_land_detected.yaml"
+    local status_message_file="${OUT}/cleanup_vehicle_status.yaml"
+    local position_message_file="${OUT}/cleanup_local_position.yaml"
     trap - EXIT INT TERM
     # A startup failure may leave physics paused; resume before requesting land.
     if [[ -f "${OUT}/startup_pause.log" ]] \
@@ -65,17 +92,84 @@ cleanup() {
             --reptype gz.msgs.Boolean --timeout 5000 --req 'pause: false' \
             >"${OUT}/cleanup_resume.log" 2>&1 || true
     fi
-    if [[ -n "${CONTROL_PID}" ]] && kill -0 "${CONTROL_PID}" 2>/dev/null; then
-        echo "Requesting descent to 0 m and checking local-position telemetry..."
+    if [[ -f "${OUT}/px4.pid" ]]; then
+        local px4_pid
+        px4_pid="$(cat "${OUT}/px4.pid" 2>/dev/null || true)"
+        if [[ -n "${px4_pid}" ]] && kill -0 "${px4_pid}" 2>/dev/null; then
+            if [[ -n "${CONTROL_PID}" ]]; then
+                echo "Stopping this run's altitude setpoint publisher before PX4 Land..."
+                kill -INT -- "-${CONTROL_PID}" 2>/dev/null || true
+                sleep 1
+                if kill -0 -- "-${CONTROL_PID}" 2>/dev/null; then
+                    kill -TERM -- "-${CONTROL_PID}" 2>/dev/null || true
+                    sleep 0.5
+                fi
+                if kill -0 -- "-${CONTROL_PID}" 2>/dev/null; then
+                    kill -KILL -- "-${CONTROL_PID}" 2>/dev/null || true
+                fi
+                CONTROL_PID=""
+            fi
+            echo "Commanding PX4 Land..."
+            timeout 8 "${PX4_DIR}/build/px4_sitl_default/bin/px4-commander" land >"${OUT}/land_command.log" 2>&1
+            land_command_status=$?
+            echo "PX4 Land command exit status: ${land_command_status}."
+            land_request_epoch_us="$(epoch_microseconds)"
+            echo "Waiting for telemetry to confirm landed state and motor disarm..."
+            for _ in $(seq 1 25); do
+                timeout 4 ros2 topic echo --once --qos-durability volatile \
+                    /fmu/out/vehicle_land_detected >"${land_message_file}" 2>/dev/null &
+                land_echo_pid=$!
+                timeout 4 ros2 topic echo --once --qos-durability volatile \
+                    /fmu/out/vehicle_status_v1 >"${status_message_file}" 2>/dev/null &
+                status_echo_pid=$!
+                local_position_sample >"${position_message_file}" 2>/dev/null &
+                position_echo_pid=$!
+                wait "${land_echo_pid}" 2>/dev/null || true
+                wait "${status_echo_pid}" 2>/dev/null || true
+                wait "${position_echo_pid}" 2>/dev/null || true
+                telemetry="$(cat "${land_message_file}" 2>/dev/null || true)"
+                status_msg="$(cat "${status_message_file}" 2>/dev/null || true)"
+                position_msg="$(cat "${position_message_file}" 2>/dev/null || true)"
+                is_landed="$(awk '/^[[:space:]]*landed:/{print $2; exit}' <<<"${telemetry}")"
+                arm_state="$(awk '/^[[:space:]]*arming_state:/{print $2; exit}' <<<"${status_msg}")"
+                land_timestamp="$(awk '/^[[:space:]]*timestamp:/{print $2; exit}' <<<"${telemetry}")"
+                status_timestamp="$(awk '/^[[:space:]]*timestamp:/{print $2; exit}' <<<"${status_msg}")"
+                position_timestamp="$(awk '/^[[:space:]]*timestamp:/{print $2; exit}' <<<"${position_msg}")"
+                z="$(awk '/^[[:space:]]*z:/{print $2; exit}' <<<"${position_msg}")"
+                telemetry_checked_at_us="$(epoch_microseconds)"
+                if [[ "${land_command_status}" -eq 0 && "${is_landed}" == "true" && "${arm_state}" == "1" \
+                    && "${z}" =~ ^[-+]?([0-9]+([.][0-9]*)?|[.][0-9]+)([eE][-+]?[0-9]+)?$ ]] \
+                    && awk -v z="${z}" 'BEGIN{if ((z<0?-z:z)<0.25) exit 0; exit 1}' \
+                    && source_timestamp_is_fresh_after_land "${land_timestamp}" "${land_request_epoch_us}" "${telemetry_checked_at_us}" \
+                    && source_timestamp_is_fresh_after_land "${status_timestamp}" "${land_request_epoch_us}" "${telemetry_checked_at_us}" \
+                    && source_timestamp_is_fresh_after_land "${position_timestamp}" "${land_request_epoch_us}" "${telemetry_checked_at_us}"; then
+                    LANDED=true
+                    echo "Landing and motor disarm confirmed by telemetry (landed=true, arming_state=1, NED z=${z} m)."
+                    break
+                fi
+                sleep 2
+            done
+            if [[ "${LANDED}" != true ]]; then
+                echo "WARNING: Land command and touchdown/disarm telemetry were not all confirmed (command_exit=${land_command_status}, landed=${is_landed:-unknown}, arm=${arm_state:-unknown}, last z=${z:-unknown})." >&2
+                [[ "${status}" -ne 0 ]] || status=1
+            fi
+        else
+            echo "WARNING: this run's PX4 process is no longer alive; landing cannot be confirmed." >&2
+            land_command_status=px4_not_running
+            [[ "${status}" -ne 0 ]] || status=1
+        fi
+    elif [[ -n "${CONTROL_PID}" ]] && kill -0 "${CONTROL_PID}" 2>/dev/null; then
+        echo "Requesting best-effort descent to 0 m; PX4 landing telemetry is unavailable."
         timeout 8 ros2 param set "/${CONTROL_NODE}" target_altitude_m 0.0 >"${OUT}/landing_request.log" 2>&1 || true
         for _ in $(seq 1 18); do
             z="$(local_z || true)"
             if [[ -n "${z}" ]] && awk -v z="${z}" 'BEGIN{if ((z<0?-z:z)<0.16) exit 0; exit 1}'; then
-                LANDED=true; echo "Ground altitude observed (local NED z=${z} m)."; break
+                echo "Near-ground altitude observed (local NED z=${z} m); not sufficient to confirm PX4 landing."; break
             fi
             sleep 2
         done
-        [[ "${LANDED}" == true ]] || echo "WARNING: ground altitude was not confirmed (last z=${z:-unknown})." >&2
+        echo "WARNING: no live PX4 process was available to verify touchdown and disarm." >&2
+        [[ "${status}" -ne 0 ]] || status=1
     fi
     # Stop perception while /clock and ROS-Gazebo transport are still alive.
     # This lets rclpy finish its current callback before the bridge/simulator exit.
@@ -96,7 +190,11 @@ cleanup() {
         [[ -n "${pid}" ]] && kill -0 "${pid}" 2>/dev/null && kill -KILL -- "-${pid}" 2>/dev/null || true
     done
     wait 2>/dev/null || true
-    printf 'landed=%s\nobserver_exit=%s\n' "${LANDED}" "${OBSERVER_STATUS}" >"${OUT}/cleanup_status.txt"
+    if [[ "${status}" -eq 0 && "${LANDED}" != true ]]; then status=1; fi
+    printf 'landed=%s\nland_command_exit=%s\nland_request_epoch_us=%s\ntelemetry_checked_at_us=%s\ntelemetry_landed=%s\narming_state=%s\nlocal_z_m=%s\nland_timestamp_us=%s\nstatus_timestamp_us=%s\nposition_timestamp_us=%s\nobserver_exit=%s\nexit_status=%s\n' \
+        "${LANDED}" "${land_command_status}" "${land_request_epoch_us}" "${telemetry_checked_at_us}" "${is_landed}" "${arm_state}" "${z}" \
+        "${land_timestamp}" "${status_timestamp}" "${position_timestamp}" "${OBSERVER_STATUS}" "${status}" \
+        >"${OUT}/cleanup_status.txt"
     echo "Stopped this test's Gazebo/PX4/ROS processes. Artifacts: ${OUT}"
     exit "${status}"
 }
@@ -231,6 +329,18 @@ echo "Recording production ROS outputs through Gazebo sim time ${STOP_SIM_TIME} 
 wait "${OBSERVER_PID}" || OBSERVER_STATUS=$?
 if [[ ${OBSERVER_STATUS} -ne 0 ]]; then
     echo "Production observer exited ${OBSERVER_STATUS}; see ${OUT}/observer.log" >&2
+    exit 9
+fi
+if ! python3 -c '
+import json, sys
+with open(sys.argv[1], encoding="utf-8") as report_file:
+    report = json.load(report_file)
+frames = int(report.get("frames_observed", 0))
+selected_actor = report.get("initial_selected_actor_by_costume")
+selected_frames = sum(int(value) for value in report.get("selected_actor_observation_counts", {}).values())
+sys.exit(0 if frames > 0 and selected_actor and selected_frames > 0 else 1)
+' "${OUT}/production_summary.json"; then
+    echo "Production capture completed without observed target-tracking evidence." >&2
     exit 9
 fi
 echo "Capture complete: ${OUT}/production_summary.json"

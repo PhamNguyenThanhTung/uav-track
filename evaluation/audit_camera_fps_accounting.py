@@ -44,6 +44,92 @@ from gz.msgs10.world_stats_pb2 import WorldStatistics
 RESULTS_DIR = os.path.join(SCRIPT_DIR, 'results')
 os.makedirs(RESULTS_DIR, exist_ok=True)
 
+SAMPLE_CSV_NAME = 'fps_frame_accounting_samples.csv'
+VERIFICATION_JSON_NAME = 'fps_frame_accounting_verification.json'
+OUTPUT_LOCK_NAME = '.camera_fps_accounting.lock'
+_ACTIVE_OUTPUT_LOCKS = {}
+
+
+def _claim_output_dir(target: str) -> str:
+    """Exclusively claim an existing directory for one audit run."""
+    target = os.path.abspath(target)
+    if not os.path.isdir(target):
+        raise NotADirectoryError(target)
+
+    lock_target = os.path.join(target, OUTPUT_LOCK_NAME)
+    try:
+        lock_file = open(lock_target, 'x', encoding='utf-8')
+    except FileExistsError as exc:
+        raise FileExistsError(
+            f"Destination directory is already claimed by an audit run: {target}"
+        ) from exc
+
+    lock_file.write(f"pid={os.getpid()}\n")
+    lock_file.flush()
+    _ACTIVE_OUTPUT_LOCKS[target] = lock_file
+
+    csv_target = os.path.join(target, SAMPLE_CSV_NAME)
+    json_target = os.path.join(target, VERIFICATION_JSON_NAME)
+    if os.path.exists(csv_target) or os.path.exists(json_target):
+        release_output_dir(target)
+        raise FileExistsError(
+            f"Destination directory already contains results: {target}. "
+            "Refusing to overwrite existing audit outputs."
+        )
+    return target
+
+
+def release_output_dir(output_dir: str) -> None:
+    """Release this process's marker after an audit exits."""
+    target = os.path.abspath(output_dir)
+    lock_file = _ACTIVE_OUTPUT_LOCKS.pop(target, None)
+    if lock_file is None:
+        return
+
+    lock_target = os.path.join(target, OUTPUT_LOCK_NAME)
+    try:
+        try:
+            current = os.stat(lock_target)
+            owned = os.fstat(lock_file.fileno())
+            if (current.st_dev, current.st_ino) == (owned.st_dev, owned.st_ino):
+                os.unlink(lock_target)
+        except FileNotFoundError:
+            pass
+    finally:
+        lock_file.close()
+
+
+def resolve_output_dir(explicit_dir: Optional[str] = None) -> str:
+    """Resolve and prepare an exclusive output directory for audit results.
+
+    Both explicit and default destinations use the same exclusive marker. The
+    marker remains held while an audit is running and is released on exit.
+    """
+    if explicit_dir is not None:
+        target = os.path.abspath(explicit_dir)
+        os.makedirs(target, exist_ok=True)
+        return _claim_output_dir(target)
+
+    runs_base = os.path.join(RESULTS_DIR, 'runs')
+    os.makedirs(runs_base, exist_ok=True)
+
+    timestamp = time.strftime('%Y%m%d_%H%M%S')
+    candidate = os.path.join(runs_base, f"camera_fps_audit_{timestamp}")
+    counter = 1
+    while True:
+        try:
+            os.makedirs(candidate, exist_ok=False)
+        except FileExistsError:
+            candidate = os.path.join(runs_base, f"camera_fps_audit_{timestamp}_{counter}")
+            counter += 1
+            continue
+
+        try:
+            return _claim_output_dir(candidate)
+        except FileExistsError:
+            candidate = os.path.join(runs_base, f"camera_fps_audit_{timestamp}_{counter}")
+            counter += 1
+
 
 class CameraFpsAccountingAuditor(Node):
     def __init__(self, target_sim_duration: float = 25.0):
@@ -305,7 +391,15 @@ class CameraFpsAccountingAuditor(Node):
         return sample
 
 
-def run_audit(target_sim_duration: float = 25.0):
+def run_audit(target_sim_duration: float = 25.0, output_dir: Optional[str] = None):
+    out_dir = resolve_output_dir(output_dir)
+    try:
+        _run_audit_in_dir(target_sim_duration, out_dir)
+    finally:
+        release_output_dir(out_dir)
+
+
+def _run_audit_in_dir(target_sim_duration: float, out_dir: str):
     rclpy.init()
     node = CameraFpsAccountingAuditor(target_sim_duration=target_sim_duration)
 
@@ -448,7 +542,7 @@ def run_audit(target_sim_duration: float = 25.0):
     complete_matches = sum(1 for s in eval_samples if s.get('match_complete'))
 
     # 4. Save CSV
-    csv_file = os.path.join(RESULTS_DIR, 'fps_frame_accounting_samples.csv')
+    csv_file = os.path.join(out_dir, SAMPLE_CSV_NAME)
     fieldnames = [
         'test_name', 'timestamp', 'camera_frame_index', 'source_stamp_sec', 'source_stamp_nanosec',
         'match_status', 'match_complete', 'matching_timeout', 'matching_incomplete', 'is_processed',
@@ -540,7 +634,7 @@ def run_audit(target_sim_duration: float = 25.0):
         }
     }
 
-    json_file = os.path.join(RESULTS_DIR, 'fps_frame_accounting_verification.json')
+    json_file = os.path.join(out_dir, VERIFICATION_JSON_NAME)
     with open(json_file, 'w') as jf:
         json.dump(results_data, jf, indent=2)
     print(f"[AUDIT] Saved JSON results to {json_file}")
@@ -582,9 +676,10 @@ def run_audit(target_sim_duration: float = 25.0):
 def main():
     parser = argparse.ArgumentParser(description="Camera FPS & Frame Accounting Audit")
     parser.add_argument('--duration', type=float, default=25.0, help="Target simulation duration in seconds (default: 25.0)")
+    parser.add_argument('--output-dir', type=str, default=None, help="Directory to save audit results (defaults to evaluation/results/runs/camera_fps_audit_<timestamp>)")
     args, unknown = parser.parse_known_args()
 
-    run_audit(target_sim_duration=args.duration)
+    run_audit(target_sim_duration=args.duration, output_dir=args.output_dir)
 
 
 if __name__ == '__main__':

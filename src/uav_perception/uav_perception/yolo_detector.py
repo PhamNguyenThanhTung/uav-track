@@ -243,7 +243,6 @@ class YOLODetectorNode(Node):
         )
         self._stream_stale = False
         self._last_frame_id = ''
-        self.current_observations = []
 
         # Target Identity Manager (Phase 4A Abstraction)
         self.target_manager = TargetIdentityManager(
@@ -274,12 +273,9 @@ class YOLODetectorNode(Node):
         self.active_track_id = None
         self.id_switch_count = 0
         self.lost_track_count = 0
-        self.last_track_seen_time = 0.0
         self.tracking_status = 'SEARCHING'  # TRACKING, UNCERTAIN, PREDICTING, LOST
 
-        # Target center smoothing
-        self.smooth_cx = 640.0
-        self.smooth_cy = 360.0
+        # Target center tracking error
         self.latest_err_x = 0.0
         self.latest_err_y = 0.0
 
@@ -329,10 +325,8 @@ class YOLODetectorNode(Node):
         self.active_track_id = None
         self.id_switch_count = 0
         self.lost_track_count = 0
-        self.last_track_seen_time = 0.0
         self.tracking_status = 'SEARCHING'
         self._stream_stale = False
-        self.current_observations = []
         response.success = True
         response.message = 'Target identity reset; next fresh person observation may be selected.'
         return response
@@ -474,7 +468,6 @@ class YOLODetectorNode(Node):
         )
         self.stat_botsort_latencies.append(tracker_latency_ms)
         self.stat_reid_latencies.append(reid_latency_ms)
-        self.current_observations = active_tracks
 
         self.total_processed += 1
         self.stat_window_inferred += 1
@@ -522,7 +515,6 @@ class YOLODetectorNode(Node):
         self.active_track_id = self.target_manager.active_tracker_id
         self.id_switch_count = self.target_manager.id_switch_count
         self.lost_track_count = self.target_manager.lost_track_count
-        self.last_track_seen_time = self.target_manager.last_track_seen_time
         self.tracking_status = (self.target_manager.tracking_status
                                 if output_freshness.accepted else 'STALE')
         tracked_bbox = self.target_manager.tracked_bbox if output_freshness.accepted else None
@@ -535,8 +527,6 @@ class YOLODetectorNode(Node):
             )
             self.current_yaw = yaw
             self.current_pitch = pitch
-            self.smooth_cx = self.gimbal_controller.smooth_cx
-            self.smooth_cy = self.gimbal_controller.smooth_cy
             self.latest_err_x = err_x
             self.latest_err_y = err_y
 
@@ -730,7 +720,6 @@ class YOLODetectorNode(Node):
             self.active_track_id = self.target_manager.active_tracker_id
             self.id_switch_count = self.target_manager.id_switch_count
             self.lost_track_count = self.target_manager.lost_track_count
-            self.last_track_seen_time = self.target_manager.last_track_seen_time
             empty = Detection2DArray()
             empty.header.stamp = self.get_clock().now().to_msg()
             empty.header.frame_id = self._last_frame_id

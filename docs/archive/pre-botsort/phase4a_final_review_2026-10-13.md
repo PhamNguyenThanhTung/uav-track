@@ -4,7 +4,7 @@
 
 **Pipeline đã xác minh:** `YOLO26n → DeepSORT → TargetIdentityManager → GimbalController`. Manager reuse embedding MobileNet 1.280 chiều qua `Track.get_feature()`; dùng bbox detection gốc, confirmed/fresh. Kalman velocity theo frame chỉ reuse hướng; velocity guard dùng history và `Image.header.stamp`. Gimbal/target topic chỉ nhận bbox manager xác nhận; không nhận bbox dự đoán khi abstain.
 
-**Nguyên nhân có bằng chứng:** bbox target bị cắt ngắn ở frame 1283–1284 nhưng vẫn vào motion history. Centroid đổi do bbox, tạo velocity dọc giả **−58 px/s**. Frame 1292 có đúng target, neural cosine **0,832**, HSV **0,967**, nhưng vertical residual **83,87 > gate 38,71 px**, nên bị reject. Sau đó terminal LOST tại frame 1321 dù người vẫn trong ảnh. Đây là lỗi history/geometry; không phải bằng chứng cần thay tracker. [Ảnh đối chiếu](../../evaluation/results/runs/phase4a_target_guard_20261013_final6/D3_failure_review.png).
+**Nguyên nhân có bằng chứng:** bbox target bị cắt ngắn ở frame 1283–1284 nhưng vẫn vào motion history. Centroid đổi do bbox, tạo velocity dọc giả **−58 px/s**. Frame 1292 có đúng target, neural cosine **0,832**, HSV **0,967**, nhưng vertical residual **83,87 > gate 38,71 px**, nên bị reject. Sau đó terminal LOST tại frame 1321 dù người vẫn trong ảnh. Đây là lỗi history/geometry; không phải bằng chứng cần thay tracker. [Ảnh đối chiếu](../../../evaluation/results/runs/phase4a_target_guard_20261013_final6/D3_failure_review.png).
 
 **Thay đổi đã kiểm tra:** guard có anchor/reference giới hạn, motion theo source time, validation cho cả TID cũ/mới, freeze reference khi crop bẩn, chặn transition đông người khi detection giảm, hai observation mới để xác nhận lại. Histogram HSV torso lấy từ crop DeepSORT đã có; crop và embedding batch chỉ chạy một lần. Không thêm model/dependency hoặc following/3D/MotionArbiter.
 
@@ -40,4 +40,4 @@ Guard mean **0,605 ms**, p95 **0,874 ms** trên 1.270 frame đo còn active; HSV
 
 Dependency: một writer guard/node; labeler raw-only và reviewer evaluator có thể làm song song khi được giao lại, profiling sau source freeze. Antigravity vẫn dừng. Còn cần chốt coverage/abstain, FPS budget và nhãn/capture độc lập. Phase 4B mới xử lý camera motion; long-term recovery vẫn ngoài phạm vi.
 
-[Acceptance và SHA256](../../evaluation/results/runs/phase4a_target_guard_20261013_final6/acceptance_v2.json) · [Bằng chứng chi tiết, timing từng phép, lệnh và file](phase4a_final_review_evidence_2026-10-13.md).
+[Acceptance và SHA256](../../../evaluation/results/runs/phase4a_target_guard_20261013_final6/acceptance_v2.json) · [Bằng chứng chi tiết, timing từng phép, lệnh và file](phase4a_final_review_evidence_2026-10-13.md).

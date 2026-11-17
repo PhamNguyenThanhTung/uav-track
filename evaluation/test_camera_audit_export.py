@@ -7,8 +7,10 @@ import io
 import json
 import os
 import sys
+import threading
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -66,8 +68,15 @@ class FakeAuditor:
 
 
 class TestCameraAuditExport(unittest.TestCase):
-    def run_audit_export(self, stamps):
-        output_dir = tempfile.TemporaryDirectory()
+    def run_audit_export(self, stamps, output_dir=None):
+        cleanup_temp = False
+        if output_dir is None:
+            temp_dir = tempfile.TemporaryDirectory()
+            target_dir = temp_dir.name
+            cleanup_temp = True
+        else:
+            target_dir = output_dir
+
         stdout = io.StringIO()
         spin_count = 0
 
@@ -89,7 +98,6 @@ class TestCameraAuditExport(unittest.TestCase):
             node.sim_time = 1.0 + 0.02
 
         with (
-            patch.object(camera_audit, "RESULTS_DIR", output_dir.name),
             patch.object(camera_audit, "CameraFpsAccountingAuditor", FakeAuditor),
             patch.object(camera_audit.rclpy, "init"),
             patch.object(camera_audit.rclpy, "ok", return_value=True),
@@ -97,16 +105,20 @@ class TestCameraAuditExport(unittest.TestCase):
             patch.object(camera_audit.rclpy, "shutdown"),
             contextlib.redirect_stdout(stdout),
         ):
-            camera_audit.run_audit(target_sim_duration=0.01)
+            camera_audit.run_audit(target_sim_duration=0.01, output_dir=target_dir)
 
-        csv_path = os.path.join(output_dir.name, "fps_frame_accounting_samples.csv")
-        json_path = os.path.join(output_dir.name, "fps_frame_accounting_verification.json")
+        csv_path = os.path.join(target_dir, camera_audit.SAMPLE_CSV_NAME)
+        json_path = os.path.join(target_dir, camera_audit.VERIFICATION_JSON_NAME)
         with open(csv_path, newline="") as csv_file:
             rows = list(csv.DictReader(csv_file))
         with open(json_path) as json_file:
             results = json.load(json_file)
         summary = stdout.getvalue()
-        output_dir.cleanup()
+        self.assertFalse(os.path.exists(os.path.join(target_dir, camera_audit.OUTPUT_LOCK_NAME)))
+        with self.assertRaises(FileExistsError):
+            camera_audit.resolve_output_dir(target_dir)
+        if cleanup_temp:
+            temp_dir.cleanup()
         return rows, results, summary
 
     def test_one_camera_frame_completes_csv_json_and_summary_export(self):
@@ -140,6 +152,74 @@ class TestCameraAuditExport(unittest.TestCase):
         self.assertEqual(results["source_camera"]["minimal_subscriber_observed_frames"], 0)
         self.assertEqual(results["evaluator_subscriber"]["received_frame_count"], 0)
         self.assertIn("TIMING & REAL-TIME FACTOR AUDIT", summary)
+
+    def test_default_runs_create_distinct_output_directories(self):
+        with tempfile.TemporaryDirectory() as tmp_base:
+            with patch.object(camera_audit, "RESULTS_DIR", tmp_base):
+                dir1 = camera_audit.resolve_output_dir(None)
+                dir2 = camera_audit.resolve_output_dir(None)
+                self.assertNotEqual(dir1, dir2)
+                self.assertTrue(os.path.isdir(dir1))
+                self.assertTrue(os.path.isdir(dir2))
+                self.assertTrue(dir1.startswith(os.path.join(tmp_base, "runs")))
+                self.assertTrue(dir2.startswith(os.path.join(tmp_base, "runs")))
+                camera_audit.release_output_dir(dir1)
+                camera_audit.release_output_dir(dir2)
+
+    def test_default_output_claim_blocks_explicit_claim_of_same_directory(self):
+        with tempfile.TemporaryDirectory() as tmp_base:
+            with patch.object(camera_audit, "RESULTS_DIR", tmp_base):
+                default_dir = camera_audit.resolve_output_dir(None)
+                self.assertTrue(os.path.isfile(os.path.join(default_dir, camera_audit.OUTPUT_LOCK_NAME)))
+                with self.assertRaises(FileExistsError):
+                    camera_audit.resolve_output_dir(default_dir)
+
+                camera_audit.release_output_dir(default_dir)
+                self.assertEqual(camera_audit.resolve_output_dir(default_dir), default_dir)
+                camera_audit.release_output_dir(default_dir)
+
+    def test_existing_output_dir_with_results_rejected_and_contents_preserved(self):
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            csv_path = os.path.join(tmp_dir, camera_audit.SAMPLE_CSV_NAME)
+            json_path = os.path.join(tmp_dir, camera_audit.VERIFICATION_JSON_NAME)
+            with open(csv_path, "w") as f:
+                f.write("ORIGINAL_CSV_PRESERVED\n")
+            with open(json_path, "w") as f:
+                f.write('{"historical": "preserved"}\n')
+
+            with self.assertRaises(FileExistsError):
+                camera_audit.resolve_output_dir(tmp_dir)
+
+            with self.assertRaises(FileExistsError):
+                camera_audit.run_audit(target_sim_duration=0.01, output_dir=tmp_dir)
+
+            with open(csv_path) as f:
+                self.assertEqual(f.read(), "ORIGINAL_CSV_PRESERVED\n")
+            with open(json_path) as f:
+                self.assertEqual(f.read(), '{"historical": "preserved"}\n')
+
+    def test_explicit_empty_output_dir_is_claimed_once_concurrently(self):
+        with tempfile.TemporaryDirectory() as tmp_base:
+            output_dir = os.path.join(tmp_base, "audit")
+            os.mkdir(output_dir)
+            start = threading.Barrier(2)
+
+            def claim_output():
+                start.wait()
+                try:
+                    return camera_audit.resolve_output_dir(output_dir)
+                except FileExistsError:
+                    return None
+
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                results = list(pool.map(lambda _: claim_output(), range(2)))
+
+            self.assertEqual(results.count(output_dir), 1)
+            self.assertEqual(results.count(None), 1)
+            self.assertTrue(os.path.isfile(os.path.join(output_dir, camera_audit.OUTPUT_LOCK_NAME)))
+            with self.assertRaises(FileExistsError):
+                camera_audit.resolve_output_dir(output_dir)
+            camera_audit.release_output_dir(output_dir)
 
 
 if __name__ == "__main__":

@@ -105,7 +105,7 @@ Trong lượt hoàn tất này:
 - Tạo `evaluation/tracking_loss_intervals.py`: đóng interval đúng actor.
 - Tạo `evaluation/test_audit_tracking_identity.py`: regression causal anchor, mẫu số đúng/sai/unknown, ID dư và loss đồng thời.
 - Sửa `evaluation/tracking_3_people_test.py`: lỗi đóng loss event và mô tả label proxy.
-- Sửa `evaluation/check_tracking_reentry.py`: kiểm tra assignment bẩn/PID cũ/TTL và xuất sang thư mục mới.
+- Sửa `evaluation/archive/deepsort/check_tracking_reentry.py`: kiểm tra assignment bẩn/PID cũ/TTL và xuất sang thư mục mới.
 - Tạo báo cáo này và `completion_audit/` chứa số liệu/ảnh/log kiểm tra bổ sung.
 
 Giữ nguyên tracker candidate, descriptor, replay, launcher, world, mọi video/summary/cache cũ, tài liệu milestone lịch sử và file production ngoài phạm vi. `launch_phase4a_review.sh` chạy luồng production, không chọn guarded test; đây là luồng khác cần phân biệt, không xóa/sửa.
@@ -128,13 +128,13 @@ Từ thư mục `project`, chỉ một terminal; launcher tự khởi động c�
 ```bash
 # Kiểm tra logic và đọc bằng chứng đã hoàn tất:
 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 ../software/venvs/yolo26/bin/python -m unittest discover -s evaluation -p 'test_*tracking_identity*.py' -v
-python3 -m py_compile evaluation/tracking_3_people_test.py evaluation/audit_tracking_identity.py evaluation/tracking_loss_intervals.py evaluation/check_tracking_reentry.py
+python3 -m py_compile evaluation/tracking_3_people_test.py evaluation/audit_tracking_identity.py evaluation/tracking_loss_intervals.py evaluation/archive/deepsort/check_tracking_reentry.py
 bash -n simulation/run_tracking_3_people_test.sh
 git diff --check
 
 # Nếu tái audit: dùng đường dẫn output mới, không ghi đè artifact cũ.
 OPENBLAS_NUM_THREADS=1 OMP_NUM_THREADS=1 ../software/venvs/yolo26/bin/python evaluation/audit_tracking_identity.py evaluation/results/runs/tracking_3_people_20261009T084549Z --output evaluation/results/runs/tracking_3_people_20261009T084549Z/completion_audit/recheck_metrics.json
-python3 evaluation/check_tracking_reentry.py evaluation/results/runs/tracking_3_people_20261009T084549Z --output-dir evaluation/results/runs/tracking_3_people_20261009T084549Z/completion_audit/recheck_reentry
+python3 evaluation/archive/deepsort/check_tracking_reentry.py evaluation/results/runs/tracking_3_people_20261009T084549Z --output-dir evaluation/results/runs/tracking_3_people_20261009T084549Z/completion_audit/recheck_reentry
 
 # Tái thí nghiệm khi cần dữ liệu mới:
 TRACKING_PROFILE=guarded TRACKING_WORLD=tracking_3_people_reentry_test TRACKING_STOP_SIM_TIME=234 ./simulation/run_tracking_3_people_test.sh

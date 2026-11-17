@@ -9,7 +9,7 @@ It continuously streams `OffboardControlMode` and `TrajectorySetpoint` messages,
 
 ## Parameters
 
-- `target_altitude_m` (double, default: `2.0`): Target altitude in meters above origin.
+- `target_altitude_m` (double, default: `2.0`): Target altitude in meters above origin. Must be a finite value representable as a 32-bit float; NaN, infinity, and values exceeding float limits are rejected. Value `0.0` is permitted for landing.
 - `publish_rate_hz` (double, default: `10.0`): Rate at which setpoints and offboard modes are published. Positive finite rates with representable periods replace the active timer on its next control tick; fractional rates such as `0.5` are supported.
 
 Parameters can be set at launch or dynamically updated via `ros2 param set`. Before requesting Offboard mode and arming, the node streams setpoints for at least one second while valid local-position telemetry remains fresh.
@@ -26,14 +26,22 @@ Parameters can be set at launch or dynamically updated via `ros2 param set`. Bef
 
 ## Build
 
+From repository root:
 ```bash
-cd /home/tungt/UAV_Project/project
 source /opt/ros/jazzy/setup.bash
-source /home/tungt/UAV_Project/software/ros2_ws/install/setup.bash
+source ../software/ros2_ws/install/setup.bash
 colcon build --packages-select uav_control
+source install/setup.bash
 ```
 
 ## Run
+
+From repository root:
+```bash
+source /opt/ros/jazzy/setup.bash
+source ../software/ros2_ws/install/setup.bash
+source install/setup.bash
+```
 
 Default (2 m):
 ```bash

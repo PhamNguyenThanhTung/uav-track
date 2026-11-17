@@ -14,7 +14,7 @@
 
 **Nguyên nhân và regression có bằng chứng**
 
-1. **BLOCKER — confirmed target chuyển người.** Trong `final4`, frame 1118 đổi association TID 20 → 38. Incumbent similarity 0,863; candidate mới 0,891, chênh 0,028. Điểm motion từ history cũ làm candidate mới thắng điểm tổng dù appearance chưa phân biệt đủ. Frame 1120 xác nhận người áo xanh dương, còn target áo đỏ ở bên trái. D2 có **10/14 frame rõ xác nhận sai**, không phải 12 sau khi sửa nhãn. [Ảnh đối chiếu](../../evaluation/results/runs/phase4a_target_guard_20261012_codex_final5/review_before_after_20261013.png).
+1. **BLOCKER — confirmed target chuyển người.** Trong `final4`, frame 1118 đổi association TID 20 → 38. Incumbent similarity 0,863; candidate mới 0,891, chênh 0,028. Điểm motion từ history cũ làm candidate mới thắng điểm tổng dù appearance chưa phân biệt đủ. Frame 1120 xác nhận người áo xanh dương, còn target áo đỏ ở bên trái. D2 có **10/14 frame rõ xác nhận sai**, không phải 12 sau khi sửa nhãn. [Ảnh đối chiếu](../../../evaluation/results/runs/phase4a_target_guard_20261012_codex_final5/review_before_after_20261013.png).
 2. **BLOCKER — fix mới làm mất association hợp lệ.** Veto incumbent mới tại `target_identity.py` chặn lần đổi TID hợp lệ từ frame 523; observation cuối được chấp nhận là frame 510. Frame 554 (69,796 s nguồn) chuyển LOST dù target vẫn trong ảnh; trạng thái terminal ngăn mọi xác nhận sau đó. Toàn capture: TRACKING 509, UNCERTAIN 43, LOST 2.613, SEARCHING 1.
 3. **HIGH — motion history chưa được bảo vệ đầy đủ khi overlap.** `clean_crop` hiện chỉ bảo vệ gallery; `_accept()` vẫn ghi bbox bẩn vào trusted motion history. Test `test_dirty_crop_can_confirm_after_two_consistent_observations_without_gallery_update` còn cho phép xác nhận crop giao mạnh, chưa đáp ứng yêu cầu đánh dấu crossing mạnh là uncertain. Đây là vấn đề cần sửa, chưa được coi là nguyên nhân duy nhất của mọi switch.
 
@@ -66,7 +66,7 @@ Lệnh verification đã chạy từ Git root, với ROS Jazzy, workspace depend
 PYTHONPATH="$PYTHONPATH:src/uav_perception:evaluation" python -m pytest -q
 git diff --check
 python evaluation/profile_phase4a_target_guard.py --output-dir evaluation/results/runs/phase4a_target_guard_20261012_codex_final5 --max-frames 3166 --plain-control-frames 3166
-python evaluation/evaluate_phase4a_target_guard.py --annotations evaluation/annotations/phase4a_target_crossing_reviewed_20261013.csv --profile evaluation/results/runs/phase4a_target_guard_20261012_codex_final5/after_profile_frames.csv --output evaluation/results/runs/phase4a_target_guard_20261012_codex_final5/acceptance_reviewed_20261013.json
+python evaluation/evaluate_phase4a_target_guard.py --annotations evaluation/annotations/phase4a_target_crossing_annotations.csv --profile evaluation/results/runs/phase4a_target_guard_20261012_codex_final5/after_profile_frames.csv --output evaluation/results/runs/phase4a_target_guard_20261012_codex_final5/acceptance_reviewed_20261013.json
 ```
 
 Profiler từ chối ghi đè evidence: dùng output directory mới khi chạy lại.
@@ -82,4 +82,4 @@ Dependency: annotation phải độc lập với guard output; guard spec trư�
 
 Cần chốt thêm coverage tối thiểu, thời gian uncertain tối đa cho crossing ngắn, và nhãn/capture độc lập trước khi đóng phase. Phase 4B mới xử lý camera/gimbal motion compensation; following, 3D estimation và MotionArbiter vẫn chưa triển khai.
 
-Evidence: [final4 acceptance đã sửa nhãn](../../evaluation/results/runs/phase4a_target_guard_20261012_codex_final4/acceptance_reviewed_20261013.json), [final5 acceptance](../../evaluation/results/runs/phase4a_target_guard_20261012_codex_final5/acceptance_reviewed_20261013.json), [final5 profile](../../evaluation/results/runs/phase4a_target_guard_20261012_codex_final5/after.json), [source manifest](../../evaluation/results/runs/phase4a_target_guard_20261012_codex_final5/after_manifest.json), [nhãn đã review](../../evaluation/annotations/phase4a_target_crossing_reviewed_20261013.json).
+Evidence: [final4 acceptance đã sửa nhãn](../../../evaluation/results/runs/phase4a_target_guard_20261012_codex_final4/acceptance_reviewed_20261013.json), [final5 acceptance](../../../evaluation/results/runs/phase4a_target_guard_20261012_codex_final5/acceptance_reviewed_20261013.json), [final5 profile](../../../evaluation/results/runs/phase4a_target_guard_20261012_codex_final5/after.json), [source manifest](../../../evaluation/results/runs/phase4a_target_guard_20261012_codex_final5/after_manifest.json), [nhãn đã review (SHA256: 505623c0...)](../../../evaluation/annotations/phase4a_target_crossing_annotations.json).

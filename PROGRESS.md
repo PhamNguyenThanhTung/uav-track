@@ -1,106 +1,66 @@
 # Project Progress
 
-## Perception concurrency/ReID experiments — 2026-10-16
+## Active Architecture
 
-- Tested clock rates, one latest-frame perception worker, lazy/async diagnostics and ReID I/O binding separately with repeated fixed-image runs. Only lazy annotation without subscribers is retained, default-on and reversible with `enable_lazy_diagnostics=false`; viewer-on rendering and guard JPEG policy remain unchanged.
-- Controlled headless baseline **12.36/11.59 FPS** → lazy **17.83/15.18 FPS**. With an image subscriber, lazy **10.94 FPS** stays within the **10.93–11.17 FPS** baseline range. The perception worker drops to **8.67/8.77 FPS**; async diagnostics and I/O binding have no repeatable primary-metric benefit and are rolled back.
-- Matching headless full simulations: **8.42→10.63 AI FPS**, decision-age p95 **256→240 ms**; clean landing/shutdown. Camera remains about 29 FPS. The ≥10 FPS reference is reached, but 12 FPS and <200 ms are not; these full windows are observational, supported by controlled headless gains.
-- Native clock is **250 Hz/source second**, about 239–240 Hz/wall second; node services about 164–174 callbacks/s. Lowering the benchmark clock reduces scheduling overhead, but production clock/executor are unchanged. Native GMC remains about 3/6 ms median/p95; extra resize rejected.
-- Redundant ReID device/host transfers are real, but I/O binding gives no stable ROS gain despite exact 100-frame behavioral equivalence. A separate batch 2+1→3 probe shows a large ORT/group/shape interaction; a public encoder-cache prototype preserves 100-frame decisions but changes embedding values, and the standard fixed input is already batched. No ReID optimization is promoted.
-- Final **187 tests PASS** with actual CUDA/ReID. Guard replay: **1,641→2,182 recorded inputs**, zero mismatches/wrong/unknown accepted targets. Independent observer accepts **173/1,551→395/2,093** joined frames; continuity remains **FAIL**, including weak long re-entry. No overall tracking PASS is claimed.
-- Build/install comparison (11 Python modules), dependency/XML checks, critical-package **13,894 RECORD hashes**, active model hashes, ROS rclpy verification and external tracked PX4 state PASS. No third-party edits, new dependencies, model/policy/controller/scenario/DDS changes, delegation or commit.
+The system operates an end-to-end simulation, flight control, perception, and tracking pipeline:
 
-See [concurrency and ReID experiments](docs/performance/perception_concurrency_reid_experiments.md), with all trial tables, p50/p95/max/resource evidence, rejected sources, replay coverage limits and final review.
+- **Simulation & Autopilot**: Gazebo Harmonic with custom X500 model (`custom_x500_gimbal_down`), downward 3-DOF gimbal, 1280×720 RGB camera, and PX4 SITL v1.17 connected via Micro XRCE-DDS Agent.
+- **Flight Control**: C++ ROS 2 package `uav_control` (`AltitudeControlNode`), decoupled from perception. Regulates target altitude in NED coordinates ($z = -\text{target\_altitude}$) and locks horizontal position ($X, Y$). Dynamic parameter updates validate finite float bounds and preserve state atomically on rejection.
+- **Perception & Tracking**: Python ROS 2 package `uav_perception` (`yolo_detector`). Integrates YOLO26n person detection on CUDA, Ultralytics BoT-SORT multi-object tracking with ORB global motion compensation (GMC), pretrained ONNX Re-ID (`yolo26n-reid.onnx` on `CUDAExecutionProvider`), `TargetIdentityManager`, and proportional closed-loop gimbal visual servoing (`GimbalController`).
+- **Performance & Freshness**: Source-age freshness gating rejects stale frames expiring during inference while maintaining GMC motion history. CUDA Graph forward replay optimizes YOLO inference latency. Lazy rendering skips HUD annotation when no viewer is subscribed to `/yolo/annotated_image`.
+- **Evaluation**: Frame-accurate evaluation framework (`benchmark_evaluator.py`, `audit_camera_fps_accounting.py`) saving to exclusive, non-overwriting run directories under `evaluation/results/runs/`.
 
-## External environment audit — 2026-10-16
+---
 
-- Independent integrity checks found no remaining third-party source patch or active-model modification. GPU ONNX Runtime 1.30.0 is the only ORT distribution; 28,712 installed Python file hashes match, package inventory is unchanged, and ROS/system checksum checks are clean.
-- Retained the intentional project Fast DDS profile, CUDA Graph, default-off instrumentation and official Ponytail tooling. Added a project-owned auto-install guard and one regression to prevent the preceding Ultralytics CPU-package overwrite from recurring at normal UAV startup.
-- Verification: **183 tests PASS** with CUDA/ReID enabled; actual ReID profile contains CUDA kernel execution; project build, 12 source/install byte comparisons, XML parse and isolated node/profiler-topic startup PASS. No package reinstall, model replacement, FPS optimization or commit in this audit.
-- Environment is a verified baseline for a separate ReID runtime task, subject to the local-receipt and ReID historical-hash limits documented in the [environment audit](docs/performance/external_environment_audit.md). Tracking continuity remains FAIL independently.
+## Dated Verified Milestones
 
-## Latest perception FPS and latency audit — 2026-10-16
+### 2026-11-16: SITL Demo, Camera Benchmark & Cleanup
+- Verified the flight-parameter guard, camera-audit output protection, and perception cleanup; the full CUDA/ReID test suite reported **189 passed**.
+- A live SITL GUI run received 1,346 raw camera frames and 63 nonempty detection arrays, then confirmed touchdown and disarm. The viewer process exited cleanly; its rendered window was not inspected automatically.
+- Three short on/off pairs found no material change in simulator RTF or source-camera FPS from the secondary camera. Keep its configuration unchanged pending a user-visible comparison.
+- After a cold power cycle the RTX 4060 was again available to CUDA, and the live demo completed. One intermittent `nvidia-smi` no-device result remains unexplained.
+- See the [secondary-camera benchmark](docs/simulation/secondary_camera_benchmark_report.md) and [runner/runtime verification](plans/evidence/runner-fixes/verification.md).
 
-- Installed the official Ponytail 5.2.0 plugin and upstream skill. Added opt-in stage timing for camera receipt, YOLO, tracker/GMC/ReID, guard, output, callback completion, resource use and actual Qt paint events.
-- On a fixed 30 FPS camera input, the stock Fast DDS repeat processed 8.49 FPS; the selected larger image transport + CUDA Graph processed **11.34 FPS**. Decision-age p95 improved **186→112 ms**; whole-callback p95 improved **167→110 ms**. CUDA Graph inference p50 improved **36.7→15.0 ms** without changing weights or precision.
-- The selected settings completed the full 236-second Gazebo/PX4 scenario: source 29.24 FPS, raw ROS receive 29.22 FPS, perception 7.96 FPS, decision-age p95 260 ms, CUDA Graph active on all 1,510 profiled frames, clean landing and shutdown. The independent observer saw 7.03 FPS over its longer capture. Guard debug was enabled to support exact replay.
-- Gazebo GUI was measured during source seconds 123–141. AI remained around 7.1–7.3 FPS; simulator RTF dipped slightly while the GUI process used about 72% of one core and 566 MiB. A separate Qt view painted 10.12 unique frames/s. These short display windows are observational.
-- Final suite **182 PASS** with CUDA and real ReID enabled. Build, dependency, XML and syntax checks pass. Full-run guard replay has zero mismatches and zero wrong/unknown accepted identities. Target continuity remains **FAIL**: only 154 of 1,438 observer frames accepted the enrolled target.
-- Current performance verdict: **PASS for the measured transport/runtime optimization; existing tracking continuity remains FAIL**. Re-ID's CPU/GPU transfers and long tail are the next runtime candidate; no model, identity policy, controller, scenario, or dependency changed.
+### 2026-10-16: Perception Concurrency & Lazy Diagnostics Optimization
+- Evaluated latest-frame perception workers, clock rates, and diagnostic concurrency. Selected default `enable_lazy_diagnostics=true`: skips HUD rendering and encoding when `/yolo/annotated_image` has no active subscribers.
+- Headless perception throughput improved from **12.36 FPS** to **17.83 FPS**; viewer-connected rate maintains **10.94 FPS**. Full simulation runs reached **10.63 AI FPS** with clean landing.
+- Full test suite achieved **187 passed, 32 subtests passed** with actual CUDA and ReID enabled (`RUN_BOTSORT_REID_RUNTIME=1`).
+- See [perception concurrency and ReID experiments report](docs/performance/perception_concurrency_reid_experiments.md).
 
-See the complete [perception and video pipeline audit](docs/performance/perception_video_pipeline_audit.md) and its captured artifacts under `evaluation/results/runs/perception_video_audit_20261015T080217Z/`.
+### 2026-10-16: External Environment & Dependency Integrity Audit
+- Validated external package integrity: GPU ONNX Runtime 1.30.0 active, 28,712 installed package file hashes verified against distribution records.
+- Added project-level auto-install guard (`YOLO_AUTOINSTALL=false`) to prevent Ultralytics from replacing GPU ONNX Runtime with CPU wheels.
+- Full test suite verified at **183 tests PASS** with CUDA/ReID enabled.
+- See [external environment audit](docs/performance/external_environment_audit.md).
 
-## Previously recorded baseline — 2026-10-15
+### 2026-10-16: Perception Video Pipeline & Latency Optimization
+- Tuned Fast DDS transport profile (`config/fastdds_images.xml`) for 1280×720 RGB payload; enabled CUDA Graph forward pass replay.
+- Processing rate on 30 FPS camera increased from **8.49 FPS** to **11.34 FPS**; decision-age p95 reduced from **186 ms** to **112 ms**; CUDA Graph forward pass p50 reduced from **36.7 ms** to **15.0 ms**.
+- Completed full 236-second simulation run (1,510 profiled frames) with clean landing and shutdown.
+- See [perception and video pipeline audit](docs/performance/perception_video_pipeline_audit.md).
 
-Production is configured as YOLO26n → BoT-SORT + ORB GMC + pretrained CUDA ONNX Re-ID → TargetIdentityManager → gimbal. **Tracking acceptance remains FAIL.** The latest retained correction rejects results that expire during detector/tracker processing, keeps ROS source time updating during inference, and preserves GMC across rejected frames without identity learning. GPU access is restored and verified. Final suite: **175 PASS**, including CUDA and actual ROS timing integration. Full simulation completes and lands, but only **11/339 recorded guard events** accept a target. No body-following is implemented.
+### 2026-10-15: Source-Age Freshness Checks & Clock Handling
+- Implemented strict source-time freshness checks (0.75 s budget) at image ingress and after detector/tracker execution.
+- Configured multithreaded ROS executor separating `/clock` from image callbacks, preventing simulated clock starvation during inference.
+- Verified test suite at **175 tests PASS** with actual CUDA Re-ID and ROS clock rewind/pause tests.
+- See [source-age verification report](docs/tracking/source_age_verification_2026-10-15.md).
 
-## Latest source-age correction and runtime — 2026-10-15
+### 2026-10-14: BoT-SORT Migration & Target Reacquisition
+- Migrated tracking backend from legacy DeepSORT to Ultralytics BoT-SORT with ORB global motion compensation and ONNX Re-ID.
+- Verified autonomous reacquisition of target person across multiple field-of-view exits and re-entries in `tracking_3_people_reentry_test` scenario.
+- See [BoT-SORT migration report](docs/tracking/botsort_migration_report.md) and [target reacquisition report](docs/tracking/target_reacquisition_report.md). Historical DeepSORT reviews archived under `docs/archive/pre-botsort/`.
 
-- Reproduced late-inference output: three component regressions failed before the fix. Actual ROS delivery also failed both advancing-clock cases because inference occupied the same callback group as `/clock`; paused-clock controls passed.
-- Added an age-only recheck after detector/tracker work using the existing 0.75 s source-clock budget. Expired results emit no target bbox, appearance learning or new gimbal command. Two executor threads keep `/clock` responsive while images, reset and watchdog remain serialized. Diagnostic JPEG generation follows controller output.
-- Late tracker frames still project historical motion with their GMC. The optional watchdog warp does not change the last real source timestamp or identity decision rules. SIGINT/SIGTERM drain workers before ROS teardown.
-- **175 tests PASS** on the final source, including real CUDA Re-ID, delayed detector/tracker ROS delivery, paused clock, source resumption, clock rewind and non-learning GMC projection. Build, dependency check, syntax and whitespace checks PASS.
-- Full final capture `tracking_3_people_20261015T065057Z`: **339 guard events, 11 accepted, zero wrong/unknown accepted labels**, source interval 46.156–235.028 s; clean landing/shutdown. Yaw **0/7**, crossing/occlusion/re-entry zero acceptance. Observed joined rate **1.23 frames/s**, processing p95 **780.1 ms**. These results **FAIL continuity**; joined FPS is not camera FPS. No new measured-joint closed-loop gimbal acceptance is claimed.
-- Historical and retained policies replay the new inputs identically, with zero recorded output mismatches. Canonical replay outputs also stay identical (406/237/186 accepted; yaw 28/15/14). The timing correction does not solve the identity policy.
-- Separately tested a corner-preserving affine-history candidate: geometry checks pass, but complete replay totals **413/165/179** and yaw **28/12/14** regress scenario/continuity gates. Candidate remains offline; no threshold search or promotion.
-- Three known crop/GMC/weak-recovery reductions still FAIL retained production. Keep these and the new latency evidence as blockers before following. No dependency installation, body-following, worker or commit.
+---
 
-See [source-age verification and motion projection report](docs/tracking/source_age_verification_2026-10-15.md) for exact before/after evidence, final runtime limitations and commands.
+## Current Limitations
 
-## Latest redesign review — 2026-10-15
+- **Tracking Continuity**: While zero wrong-target associations occur across test scenarios, tracking continuity under extreme yaw, prolonged occlusion, or crossing remains below full acceptance threshold.
+- **Decoupled Flight Authority**: The UAV hovers at takeoff coordinates and commands gimbal pitch and yaw only. Autonomous horizontal chassis-following (`MotionArbiter`) is not yet enabled.
 
-- Re-audited actual detector/adapter/guard/controller paths and all three complete captures; baseline counts and all-flags-off output equivalence match exactly. Frame evidence distinguishes geometry learning, motion, neural/HSV, crop/competition, confirmation and raw-ID/source changes.
-- Tested H1–H4 separately, one H3 FIFO diagnostic control, then one final H1 + measured-exemplar/provenance composition. H2 failed partial-crop velocity tests; H4 supplied no trace benefit. No policy tuning followed final review.
-- Final offline yaw **28/35, 16/36, 10/35** and totals **318/1510, 144/1508, 66/1467** FAIL the required floors; crossing/occlusion/re-entry also regress. All recorded accepted labels remain correct (zero wrong/unknown). Both known reductions and the added weak-recovery-chain test pass in the candidate; they still fail on retained baseline.
-- Candidate non-GPU suite **175 PASS / 1 skipped**; retained production **163 PASS / 1 skipped**, including seven new native-BoT-SORT GMC cases. Build, dependencies and runner syntax PASS. CUDA smoke was attempted and FAILS because the device is unavailable; it is not counted as PASS.
-- Ultralytics unexpectedly auto-installed CPU ONNX Runtime during the first GPU test. That side effect was undone: CPU distribution removed, original GPU 1.30.0 restored, all 327 package RECORD hashes verified. Subsequent checks disable auto-install. GPU availability remains an environment limitation.
-- Retained changes: adapter determinant validation, seven regression cases, module documentation, this progress update and [redesign report](docs/tracking/target_guard_redesign_report.md). Guard/scenario/controller/watchdog behavior is unchanged. No delegation, orchestrator, body-following or commit.
+---
 
-## Previous geometry and appearance review — 2026-10-14
+## Next Steps
 
-- Root verification confirms measured detector boxes are fresh, but the guard reuses GMC-transformed history for crop quality, motion and reference maintenance. Both reduced failures reproduce. The three captures also contain 7/7/9 singular GMC matrices accepted by baseline adapter validation; no stale observations, timestamp reversal or watchdog events occur in those traces.
-- Initial candidate resolves both reductions and passes 66 adjacent tests, but complete acceptance totals regress to 396/188/115 versus baseline 406/237/186. One feedback round adds observed reference medoids, confidence provenance and separate motion proxies; **174 candidate tests PASS**, including real CUDA Re-ID and invalid-GMC BoT-SORT integration.
-- Final candidate still FAILS: original/final/new-runtime yaw is **30/35, 12/36, 8/35**, total acceptance **281/1510, 90/1508, 69/1467**, with crossing/occlusion/re-entry regressions. Wrong/unknown acceptance remains zero; continuity does not meet acceptance.
-- Stopped after that one feedback round. Guard, adapter and adapter tests match saved baseline bytes; installed perception sources also match. Restored production suite **157 PASS**, build/dependency/runner syntax PASS. Both reduced defects still FAIL on restored production.
-- Only the new report, progress links and ignored review evidence remain from this task. No simulator/scenario/interface/body-following change, delegation, orchestrator or commit was introduced.
-
-See [geometry and appearance robustness report](docs/tracking/geometry_appearance_robustness_report.md) for all scenario counts, visible-target interruption metrics, rejected sources/tests and exact verification commands. The yaw investigation below is preceding historical evidence.
-
-## Current verified baseline
-
-- Custom X500, 3-DOF gimbal, 1280x720 RGB camera; ROS 2 Jazzy/Gazebo/PX4 SITL under WSL2.
-- Fresh measured accepted targets alone reach controller-facing detections. Identity ambiguity and pending recovery emit no target bbox; explicit reset permits new selection.
-- Enrollment anchors remain protected, appearance memory bounded, and CUDA ONNX Re-ID/ORB GMC required at startup.
-- Production flight control remains independent Offboard position/altitude hold. No autonomous horizontal body-following exists.
-- Prior 2026-10-14 baseline: **157 tests PASS**. Current final suite: **175 PASS**, including real CUDA Re-ID and actual ROS source-clock timing checks. Perception build, dependency check and runner syntax PASS. Identity-policy acceptance is still FAIL.
-- Prior reacquisition acceptance capture: 1,508 processed updates, 25 correct LOST recoveries, zero wrong/unknown acceptance, actual short/long selected-A re-entry, 0.620 m horizontal movement and clean landing. These remain historical evidence, not a PASS for continuity.
-
-## Latest yaw investigation
-
-- Exact replay confirms the extent guard compares detector geometry with cumulatively GMC-warped history, freezing trusted history/reference refresh and rejecting correct yaw candidates. All twelve lost-acceptance frames are traced individually.
-- Candidate yaw reaches **33/35 original and 25/36 final**; feedback reaches 35/35 and 25/36. Both meet the prescribed yaw floors on those captures.
-- Candidate still regresses original crossing **31→21/131** and long-stage coverage **104→82/387**. On a new complete runtime trace, baseline versus candidate acceptance is **186→112/1,467**, crossing **27→8/123**, occlusion **34→4/152**.
-- One feedback trial leaves original crossing at **16/131** and new-runtime yaw at **9/35 versus baseline 14/35**. It fails acceptance and is not promoted. No further policy tuning follows.
-- Candidate has **171 passing tests**, but runtime evidence rejects it. Candidate source/diffs/tests/replays are retained as ignored review artifacts; production policy changes are rolled back byte-for-byte.
-- Two newly reduced GMC/crop counterexamples still FAIL on the restored baseline. Existing-suite success and distinct-shirt zero wrong-target observations do not establish complete identity safety.
-
-See the current [camera yaw regression report](docs/tracking/camera_yaw_regression_report.md), including per-frame causes, full scenario comparisons, exact commands and final-state limitations. The [target reacquisition report](docs/tracking/target_reacquisition_report.md) and [migration report](docs/tracking/botsort_migration_report.md) preserve preceding task evidence.
-
-## Runtime and retained runner fix
-
-- A full candidate run after watchdog correction captures **48.808–235.952 s**, 1,467 processed guard updates, 15 correct LOST recoveries, zero wrong/unknown accepted identities and clean landing/shutdown.
-- Selected A recovers after short re-entry at **181.404 s** and long re-entry at **222.456 s**. Actual lateral displacement is **0.624 m**, altitude 2.985–3.048 m.
-- Joined observer: 5.09 observed frames/s, processing p95 225.5 ms. Candidate accepted coverage is only **7.6%**; same-input pre-task guard replay reaches 12.7%.
-- First attempted run starts at 62.472 s and misses static/most yaw; retained but excluded from scenario acceptance. The runner now pauses source simulation time after hover during model startup, then resumes before recording the scenarios. Actor paths/source-time intervals and flight/ROS contracts are unchanged.
-- The complete candidate simulator run contains no watchdog events; actual resumed-stream behavior remains node-integration evidence. Full simulation after rollback was not repeated. Exact replay and source-byte checks verify restoration to the previously verified guard.
-
-## Remaining work before body-following
-
-1. Production yaw remains **28/35 and 15/36** on the two canonical captures, below the required 33/35 and 22/36 floors.
-2. Find a crop/ego-motion and view-memory policy that preserves identity safety and improves all scenario comparisons, including the newly reduced counterexamples and latest trace. Do not accept a yaw-only improvement.
-3. Pre-register visible-target coverage/interruption budgets from the required control update rate; current simulation does not establish continuous following or a sufficient update rate. Do not invent a threshold to label these results PASS.
-4. The latest complete runtime has only 11/339 accepted updates and processing p95 780.1 ms; investigate latency with a paired control and preserve the source-age gate. Similar-looking people and real-world identity safety remain unverified. No target 3D estimator, motion arbiter, horizontal following, search behavior or complete TF tree exists.
-
-## Last updated
-
-2026-10-15. **Source-age correction verified; tracking continuity FAIL.** Rejected identity-policy and corner-projection candidates remain offline. Current source/installed hashes match; final suite 175 PASS including CUDA, simulator landed cleanly. GMC validity and late-result projection retained independently of identity policy. No worker, orchestrator or commit.
+1. **Camera Viewing Check**: In the simulator, compare `/custom_x500/camera/image_raw` with `/yolo/annotated_image` in `rqt_image_view` under the same scene. Record whether the raw stream or only the annotated stream appears delayed before changing the pipeline.
+2. **Tracking Robustness**: Improve target continuity through yaw, crossing, occlusion, and re-entry; this still has not met acceptance.
+3. **Chassis Following**: Consider `MotionArbiter` only after target continuity is reliable; horizontal body-following is not enabled.

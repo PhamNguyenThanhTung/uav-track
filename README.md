@@ -75,32 +75,57 @@ project/
 
 ---
 
-## Environment
+## Environment & Preconditions
 
-- **OS**: Ubuntu 24.04 LTS (under WSL2)
-- **ROS 2**: Jazzy Jalisco (`/opt/ros/jazzy`)
-- **Gazebo**: Harmonic (Gazebo Sim 8.15.0)
-- **PX4**: v1.17.0 (`../software/PX4-Autopilot`)
-- **Python Virtualenv**: `../software/venvs/yolo26` (PyTorch, Ultralytics, ONNX Runtime GPU; see [src/uav_perception/README.md](src/uav_perception/README.md) for install details)
+Before running the simulation or perception stack, ensure the following preconditions are met:
+
+- **OS**: Ubuntu 24.04 LTS (native or WSL2)
+- **ROS 2**: Jazzy Jalisco (`/opt/ros/jazzy`) with `ros_gz_bridge` available.
+- **Gazebo**: Harmonic (Gazebo Sim 8.x)
+- **PX4 Autopilot**: v1.17.0 built under `../software/PX4-Autopilot` (or path exported via `PX4_AUTOPILOT_DIR`).
+- **Micro XRCE-DDS Agent**: `MicroXRCEAgent` binary available in `PATH` (e.g. `~/.local/bin/MicroXRCEAgent`) with UDP port 8888 accessible.
+- **ROS 2 Dependencies**: `px4_msgs` built in `../software/ros2_ws`.
+- **Python Virtualenv**: `../software/venvs/yolo26` (Python 3.12 with PyTorch 2.6, Ultralytics 8.4, and ONNX Runtime GPU).
+- **CUDA & Pretrained ReID**: NVIDIA GPU driver, CUDA Execution Provider in ONNX Runtime, and model weights downloaded at `~/.cache/uav_perception/yolo26n-reid.onnx` and `~/.cache/ultralytics/yolo26n.pt`.
+
+### Sourcing Sequence
+
+To avoid virtualenv path resets and ensure proper discovery of ROS 2 message definitions:
+```bash
+# 1. Activate Python virtual environment first
+source ../software/venvs/yolo26/bin/activate
+
+# 2. Source system ROS 2 Jazzy
+source /opt/ros/jazzy/setup.bash
+
+# 3. Source dependency overlay (px4_msgs, ros_gz_bridge)
+source ../software/ros2_ws/install/setup.bash
+
+# 4. Source project workspace (after colcon build)
+source install/setup.bash
+```
 
 ---
 
 ## Running the System
 
-### Option A: All-in-One Master Launcher (Recommended)
+### Step 1: Launch Simulation & Autopilot (Terminal 1)
 
+`./launch_simulation.sh` starts Gazebo Harmonic, `ros_gz_bridge`, and PX4 SITL. If `--offboard <altitude>` is passed, it also starts the `altitude_control` node for automated takeoff. Node perception runs separately.
+
+From repository root:
 ```bash
-cd /home/tungt/UAV_Project/project
-
 # Launch simulation with 3D Gazebo GUI:
 ./launch_simulation.sh
 
-# Or launch Headless (saves CPU & RAM):
+# Or launch Headless (recommended for benchmarks, saves GPU/CPU):
 ./launch_simulation.sh --headless
 
-# Or launch Headless with automated Offboard Takeoff to 2.5 m:
-./launch_simulation.sh --headless --offboard 2.5
+# Or launch Headless with automated Offboard Takeoff to 2.0 m:
+./launch_simulation.sh --headless --offboard 2.0
 ```
+
+> **WSL / Terminal Utility**: The companion script `./launch_phase4a_review.sh` automatically opens separate tabs in Windows Terminal (`wt.exe`) on WSL2, or tabs in `gnome-terminal` on native Linux.
 
 ### GPU Rendering on WSL
 
@@ -116,42 +141,71 @@ frames per wall-clock second with the server alone, and 29 with the world GUI.
 Physics still runs on the CPU. These measurements exclude PX4 flight and YOLO
 inference load; see [GPU verification](docs/notes/gazebo_gpu_2026-10-06.md).
 
-### Option B: Launching Perception & Visual Servoing
+### Step 2: Launch Perception & Visual Servoing (Terminal 2)
 
-In a new terminal:
+Perception runs in a separate process and connects to Gazebo clock and camera topics:
+
+From repository root:
 ```bash
+source ../software/venvs/yolo26/bin/activate
 source /opt/ros/jazzy/setup.bash
-source /home/tungt/UAV_Project/software/ros2_ws/install/setup.bash
-source /home/tungt/UAV_Project/software/venvs/yolo26/bin/activate
-source /home/tungt/UAV_Project/project/install/setup.bash
+source ../software/ros2_ws/install/setup.bash
+source install/setup.bash
 
-python3 -m uav_perception.yolo_detector
+python3 -m uav_perception.yolo_detector --ros-args -p use_sim_time:=true
 ```
+
+For advanced parameters (CUDA Graph, lazy diagnostics, guard debug), refer to [src/uav_perception/README.md](src/uav_perception/README.md).
+
+### Step 3: Monitoring Image Feeds & Visual Output
+
+To observe the simulation and tracking outputs:
+
+```bash
+ros2 run rqt_image_view rqt_image_view
+```
+
+Select one of the following topics in the top drop-down:
+- `/custom_x500/camera/image_raw`: Raw camera stream directly from Gazebo (1280×720 RGB at 30 FPS).
+- `/yolo/annotated_image`: Perception stream with AI bounding boxes, tracking ID, and telemetry HUD.
+
+> [!NOTE]
+> `/custom_x500/camera/image_raw` and `/yolo/annotated_image` operate at different frame rates: the raw camera targets ~30 FPS, while the annotated stream follows the AI processing rate and varies with workload and viewer activity. Compare both topics in the same scene to tell whether delay begins at the source or in perception. Lazy rendering skips overlays when no viewer subscribes to `/yolo/annotated_image`.
 
 ---
 
 ## Verification
 
 ### Unit Tests
-Run lightweight unit tests without launching the simulator:
+Run unit tests from repository root without launching the simulator:
 
 ```bash
-cd /home/tungt/UAV_Project
+source ../software/venvs/yolo26/bin/activate
+source /opt/ros/jazzy/setup.bash
+source ../software/ros2_ws/install/setup.bash
+source install/setup.bash
 
 # 1. Metric calculator unit tests:
-python3 project/evaluation/test_metric_calculator.py
+python3 evaluation/test_metric_calculator.py
 
-# 2. Sliding buffer frame matcher unit tests (requires ROS 2 environment):
-bash -c "source /opt/ros/jazzy/setup.bash && source software/ros2_ws/install/setup.bash && python3 project/evaluation/test_evaluator_matching.py"
+# 2. Sliding buffer frame matcher and export tests:
+python3 -m unittest evaluation/test_evaluator_matching.py
+python3 -m unittest evaluation/test_camera_audit_export.py
 
-# 3. Perception package unit tests (TargetIdentityManager & GimbalController):
-PYTHONPATH=project/src/uav_perception python3 -m pytest project/src/uav_perception/test/
+# 3. Full perception & control test suite (189 tests at the latest recorded run):
+PYTHONPATH="src/uav_perception:src/uav_control:evaluation:$PYTHONPATH" \
+  RUN_BOTSORT_REID_RUNTIME=1 python3 -m pytest -q
 ```
 
 ### Runtime Benchmark
 To record tracking performance metrics against a running simulation (outputs save safely to `evaluation/results/runs/<timestamp>/` by default or custom `--output-dir`):
 ```bash
-python3 project/evaluation/benchmark_evaluator.py --verify-sec 25
+source ../software/venvs/yolo26/bin/activate
+source /opt/ros/jazzy/setup.bash
+source ../software/ros2_ws/install/setup.bash
+source install/setup.bash
+
+python3 evaluation/benchmark_evaluator.py --verify-sec 25
 ```
 
 ---
