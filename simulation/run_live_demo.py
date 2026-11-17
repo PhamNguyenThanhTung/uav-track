@@ -208,6 +208,12 @@ def main():
     parser.add_argument("--hover-time", type=float, default=25.0, help="Tracking duration in seconds")
     parser.add_argument("--headless", action="store_true", help="Run without the Gazebo or image-viewer window")
     parser.add_argument("--performance-debug", action="store_true", help="Enable performance debug telemetry in yolo_detector")
+    parser.add_argument(
+        "--view-topic",
+        choices=("/yolo/annotated_image", "/custom_x500/camera/image_raw"),
+        default="/yolo/annotated_image",
+        help="Image topic shown by rqt_image_view",
+    )
     args = parser.parse_args()
     if not math.isfinite(args.hover_time) or args.hover_time <= 0:
         parser.error("--hover-time must be a finite positive number")
@@ -255,6 +261,7 @@ def main():
         "gazebo_partition": out.name,
         "xrce_udp_port": xrce_port,
         "px4_instance": 0,
+        "viewer_topic": None if args.headless else args.view_topic,
         "checks": {},
         "land_commands": [],
     }
@@ -425,7 +432,7 @@ def main():
         if not args.headless:
             env["DISPLAY"] = os.environ.get("DISPLAY", ":1")
             env.setdefault("WAYLAND_DISPLAY", "wayland-0")
-            launch("viewer", ["ros2", "run", "rqt_image_view", "rqt_image_view", "/yolo/annotated_image"])
+            launch("viewer", ["ros2", "run", "rqt_image_view", "rqt_image_view", args.view_topic])
 
         positive_before = node.positive_detection_messages
         print(f"Tracking for {args.hover_time:.1f}s; detections counted from nonempty arrays.", flush=True)
