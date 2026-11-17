@@ -42,6 +42,7 @@ class CUDAGraphForward:
         if not self.enabled or not supported:
             self.enabled = False
             return self._forward(image, *args, **kwargs)
-        self._input.copy_(image)
-        self._graph.replay()
+        with torch.inference_mode():
+            self._input.copy_(image)
+            self._graph.replay()
         return self._output

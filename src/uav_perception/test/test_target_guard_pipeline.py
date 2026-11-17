@@ -116,7 +116,6 @@ def _node_harness(outputs, stamp_now_sec=100.05):
     node.active_track_id = None
     node.id_switch_count = 0
     node.lost_track_count = 0
-    node.last_track_seen_time = 0.0
     node.tracking_status = "SEARCHING"
     node._stream_stale = False
     node._last_frame_id = "camera"
@@ -124,8 +123,6 @@ def _node_harness(outputs, stamp_now_sec=100.05):
     node.current_pitch = 0.0
     node.deadband_x = 25.0
     node.deadband_y = 20.0
-    node.smooth_cx = 0.0
-    node.smooth_cy = 0.0
     node.latest_err_x = 0.0
     node.latest_err_y = 0.0
     return node
