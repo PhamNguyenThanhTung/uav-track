@@ -7,7 +7,7 @@ from ultralytics.engine.results import Boxes
 from uav_perception.frame_freshness import ImageFreshnessGuard
 from uav_perception.target_identity import TargetIdentityManager, TrackingStatus
 from uav_perception.tracking import TrackingPipeline
-from uav_perception.yolo_detector import YOLODetectorNode
+from uav_perception.perception_node import PerceptionNode
 
 
 class _Model:
@@ -167,12 +167,12 @@ def test_target_guard_is_the_only_authority_for_bbox_and_gimbal_commands():
         [_observation([0.0, 1.0, 0.0])],
     ])
 
-    YOLODetectorNode.process_frame(node, _image(100.0))
+    PerceptionNode.process_frame(node, _image(100.0))
     assert len(node.detections_pub.messages[-1].detections) == 1
     assert node.gimbal_controller.calls == 1
     assert node.target_manager.last_track_seen_time == 100.0
 
-    YOLODetectorNode.process_frame(node, _image(100.1))
+    PerceptionNode.process_frame(node, _image(100.1))
 
     assert node.tracking_status == TrackingStatus.UNCERTAIN
     assert node.target_manager.last_track_seen_time == 100.0
@@ -192,7 +192,7 @@ def test_raw_detector_output_is_published_before_tracker_update():
         return original_update(*args, **kwargs)
 
     tracker.update = observe_raw_before_tracking
-    YOLODetectorNode.process_frame(node, _image(100.0))
+    PerceptionNode.process_frame(node, _image(100.0))
 
     assert raw_message_counts == [1]
     assert node.raw_detections_pub.messages[0].header.stamp.sec == 100
@@ -200,15 +200,15 @@ def test_raw_detector_output_is_published_before_tracker_update():
 
 def test_duplicate_backward_and_stale_frames_do_not_reach_yolo_or_tracker():
     node = _node_harness([[_observation([1.0, 0.0, 0.0])]], stamp_now_sec=100.05)
-    YOLODetectorNode.process_frame(node, _image(100.0))
+    PerceptionNode.process_frame(node, _image(100.0))
     assert node.tracking_pipeline.tracker.calls == node.tracking_pipeline.model.calls == 1
     initial_detections = len(node.detections_pub.messages)
     initial_gimbal_calls = node.gimbal_controller.calls
 
-    YOLODetectorNode.process_frame(node, _image(100.0))
-    YOLODetectorNode.process_frame(node, _image(99.9))
+    PerceptionNode.process_frame(node, _image(100.0))
+    PerceptionNode.process_frame(node, _image(99.9))
     node.get_clock = lambda: _Clock(102_000_000_000)
-    YOLODetectorNode.process_frame(node, _image(100.1))
+    PerceptionNode.process_frame(node, _image(100.1))
 
     assert node.total_stale == 3
     assert node.tracking_pipeline.model.calls == 1
@@ -219,20 +219,20 @@ def test_duplicate_backward_and_stale_frames_do_not_reach_yolo_or_tracker():
 
 def test_stream_watchdog_respects_sim_clock_and_clears_target_on_real_stall():
     node = _node_harness([[_observation([1.0, 0.0, 0.0])]], stamp_now_sec=100.05)
-    YOLODetectorNode.process_frame(node, _image(100.0))
+    PerceptionNode.process_frame(node, _image(100.0))
     calls = len(node.detections_pub.messages)
 
     # A delayed wall timer while simulation time is paused is not stale input.
     node.get_clock = lambda: _Clock(100_500_000_000)
     node.frame_freshness.last_receipt_monotonic -= 10.0
-    YOLODetectorNode._check_camera_watchdog(node)
+    PerceptionNode._check_camera_watchdog(node)
     assert node.tracking_status == TrackingStatus.TRACKING
     assert len(node.detections_pub.messages) == calls
 
     # With the simulation clock advancing beyond the source age budget, clear
     # the published target and hold the last gimbal command.
     node.get_clock = lambda: _Clock(101_000_000_000)
-    YOLODetectorNode._check_camera_watchdog(node)
+    PerceptionNode._check_camera_watchdog(node)
     assert node.tracking_status == "STALE"
     assert node.detections_pub.messages[-1].detections == []
     assert node.gimbal_controller.calls == 1
@@ -240,10 +240,10 @@ def test_stream_watchdog_respects_sim_clock_and_clears_target_on_real_stall():
 
 def test_explicit_target_reset_resets_both_manager_and_tracker():
     node = _node_harness([[_observation([1.0, 0.0, 0.0])]])
-    YOLODetectorNode.process_frame(node, _image(100.0))
+    PerceptionNode.process_frame(node, _image(100.0))
     response = SimpleNamespace(success=False, message="")
 
-    returned = YOLODetectorNode.reset_target_callback(node, None, response)
+    returned = PerceptionNode.reset_target_callback(node, None, response)
 
     assert returned.success
     assert node.tracking_pipeline.tracker.reset_calls == 1
@@ -252,15 +252,15 @@ def test_explicit_target_reset_resets_both_manager_and_tracker():
 
 def test_watchdog_time_does_not_make_a_fresh_resumed_source_stamp_look_like_clock_rewind():
     node = _node_harness([[_observation([1.0, 0.0, 0.0])]] * 4)
-    YOLODetectorNode.process_frame(node, _image(100.0))
+    PerceptionNode.process_frame(node, _image(100.0))
     node.frame_freshness.last_receipt_monotonic -= 10.0
     node.get_clock = lambda: _Clock(103_000_000_000)
-    YOLODetectorNode._check_camera_watchdog(node)
+    PerceptionNode._check_camera_watchdog(node)
     assert node.detections_pub.messages[-1].detections == []
     # Source frames are fresh and ordered relative to the last real image,
     # but can precede the synthetic watchdog time due to transport latency.
     for source_time in (102.8, 102.9, 103.0):
-        YOLODetectorNode.process_frame(node, _image(source_time))
+        PerceptionNode.process_frame(node, _image(source_time))
     assert node.target_manager.tracking_status == TrackingStatus.TRACKING
     assert node.detections_pub.messages[-1].detections
 
@@ -278,7 +278,7 @@ def test_result_that_expires_during_inference_cannot_enroll_or_command(slow_stag
         return result
 
     setattr(owner, method, delayed)
-    YOLODetectorNode.process_frame(node, _image(100.0))
+    PerceptionNode.process_frame(node, _image(100.0))
 
     assert node.gimbal_controller.calls == 0
     assert node.detections_pub.messages[-1].detections == []
@@ -291,7 +291,7 @@ def test_result_that_expires_during_inference_cannot_enroll_or_command(slow_stag
 
 def test_expired_result_preserves_enrollment_and_allows_fresh_source_resumption():
     node = _node_harness([[_observation([1.0, 0.0, 0.0])]] * 5)
-    YOLODetectorNode.process_frame(node, _image(100.0))
+    PerceptionNode.process_frame(node, _image(100.0))
     anchor = node.target_manager._anchor_feature.copy()
     original = node.tracking_pipeline.tracker.update
 
@@ -301,7 +301,7 @@ def test_expired_result_preserves_enrollment_and_allows_fresh_source_resumption(
         return result
 
     node.tracking_pipeline.tracker.update = delayed
-    YOLODetectorNode.process_frame(node, _image(100.1))
+    PerceptionNode.process_frame(node, _image(100.1))
     assert node.detections_pub.messages[-1].detections == []
     assert node.gimbal_controller.calls == 1
     assert node.target_manager.last_track_seen_time == 100.0
@@ -309,7 +309,7 @@ def test_expired_result_preserves_enrollment_and_allows_fresh_source_resumption(
 
     node.tracking_pipeline.tracker.update = original
     for source_time in (102.8, 102.9, 103.0):
-        YOLODetectorNode.process_frame(node, _image(source_time))
+        PerceptionNode.process_frame(node, _image(source_time))
     assert node.target_manager.state.is_active
     assert node.detections_pub.messages[-1].detections
 
@@ -320,7 +320,7 @@ def test_slow_wall_processing_does_not_expire_a_paused_simulation(monkeypatch):
     node.get_clock = lambda: clock
     # Simulate a long wall interval while the ROS source clock stays paused.
     monotonic = [10.0]
-    monkeypatch.setattr('uav_perception.yolo_detector.time.monotonic', lambda: monotonic[0])
+    monkeypatch.setattr('uav_perception.perception_node.time.monotonic', lambda: monotonic[0])
     original = node.tracking_pipeline.tracker.update
 
     def delayed(*args, **kwargs):
@@ -328,7 +328,7 @@ def test_slow_wall_processing_does_not_expire_a_paused_simulation(monkeypatch):
         return original(*args, **kwargs)
 
     node.tracking_pipeline.tracker.update = delayed
-    YOLODetectorNode.process_frame(node, _image(100.0))
+    PerceptionNode.process_frame(node, _image(100.0))
     assert node.gimbal_controller.calls == 1
     assert node.detections_pub.messages[-1].detections
     assert node.total_stale == 0
@@ -336,7 +336,7 @@ def test_slow_wall_processing_does_not_expire_a_paused_simulation(monkeypatch):
 
 def test_clock_rewind_during_inference_invalidates_identity_until_reset():
     node = _node_harness([[_observation([1.0, 0.0, 0.0])]] * 3)
-    YOLODetectorNode.process_frame(node, _image(100.0))
+    PerceptionNode.process_frame(node, _image(100.0))
     original = node.tracking_pipeline.tracker.update
 
     def rewound(*args, **kwargs):
@@ -345,7 +345,7 @@ def test_clock_rewind_during_inference_invalidates_identity_until_reset():
         return result
 
     node.tracking_pipeline.tracker.update = rewound
-    YOLODetectorNode.process_frame(node, _image(100.1))
+    PerceptionNode.process_frame(node, _image(100.1))
     assert not node.detections_pub.messages[-1].detections
     assert node.gimbal_controller.calls == 1
     assert node.target_manager._session_invalidated
@@ -353,7 +353,7 @@ def test_clock_rewind_during_inference_invalidates_identity_until_reset():
 
 def test_expired_tracker_frame_advances_camera_geometry_without_learning():
     node = _node_harness([[_observation([1.0, 0.0, 0.0])]] * 4)
-    YOLODetectorNode.process_frame(node, _image(100.0))
+    PerceptionNode.process_frame(node, _image(100.0))
     references = node.target_manager.appearance_reference_count
     original = node.tracking_pipeline.tracker.update
     node.tracking_pipeline.tracker.last_gmc_warp = np.array([[1., 0., 40.], [0., 1., 0.]])
@@ -364,7 +364,7 @@ def test_expired_tracker_frame_advances_camera_geometry_without_learning():
         return result
 
     node.tracking_pipeline.tracker.update = delayed
-    YOLODetectorNode.process_frame(node, _image(100.1))
+    PerceptionNode.process_frame(node, _image(100.1))
     assert not node.detections_pub.messages[-1].detections
     assert node.gimbal_controller.calls == 1
     assert node.target_manager.appearance_reference_count == references
@@ -377,7 +377,7 @@ def test_performance_receipt_reads_actual_rclpy_message_info_dictionary():
                            get_clock=lambda: _Clock(100_050_000_000), process_frame=lambda _msg: None)
     info = dict(received_timestamp=1_790_000_000_010_000_000,
                 source_timestamp=1_790_000_000_005_000_000)
-    YOLODetectorNode.image_callback(node, _image(100.0), info)
+    PerceptionNode.image_callback(node, _image(100.0), info)
     assert node._performance_receipt['rmw_received_wall_ns'] == info['received_timestamp']
     assert node._performance_receipt['rmw_published_wall_ns'] == info['source_timestamp']
     assert node._performance_receipt['receive_source_clock_ns'] == 100_050_000_000

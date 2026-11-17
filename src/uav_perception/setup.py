@@ -21,7 +21,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'yolo_detector = uav_perception.yolo_detector:main',
+            'yolo_detector = uav_perception.perception_node:main',
         ],
     },
 )

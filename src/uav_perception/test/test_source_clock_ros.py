@@ -14,7 +14,7 @@ from sensor_msgs.msg import Image
 from ultralytics.engine.results import Boxes
 from vision_msgs.msg import Detection2DArray
 
-import uav_perception.yolo_detector as detector
+import uav_perception.perception_node as detector
 import uav_perception.tracking as tracking
 
 
@@ -67,7 +67,7 @@ def test_real_source_clock_and_delayed_inference(monkeypatch, slow_stage, clock_
                      '-p', 'detections_topic:=/test_source_clock/target'])
     node = driver = executor = thread = None
     try:
-        node = detector.YOLODetectorNode()
+        node = detector.PerceptionNode()
         publish_command = node.publish_gimbal_command
 
         def command(yaw, pitch):
