@@ -234,4 +234,115 @@ TEST_F(AltitudeControlTest, PostTakeoffHeadingInvalidRejectedAfterInFlightAlignm
   EXPECT_NEAR(node->hold_yaw(), 1.67, 1e-5);
 }
 
+// 8. Constructor validation for target_altitude_m
+// (rejects NaN, inf, float overflow; accepts valid & 0.0)
+TEST_F(AltitudeControlTest, ConstructorTargetAltitudeValidation)
+{
+  std::string reason;
+  EXPECT_FALSE(AltitudeControlNode::is_target_altitude_valid(
+      std::numeric_limits<double>::quiet_NaN(), &reason));
+  EXPECT_NE(reason.find("target_altitude_m"), std::string::npos);
+
+  EXPECT_FALSE(AltitudeControlNode::is_target_altitude_valid(
+      std::numeric_limits<double>::infinity(), &reason));
+  EXPECT_NE(reason.find("target_altitude_m"), std::string::npos);
+
+  EXPECT_FALSE(AltitudeControlNode::is_target_altitude_valid(1e39, &reason));
+  EXPECT_NE(reason.find("target_altitude_m"), std::string::npos);
+
+  EXPECT_TRUE(AltitudeControlNode::is_target_altitude_valid(0.0));
+  EXPECT_TRUE(AltitudeControlNode::is_target_altitude_valid(2.5));
+
+  // Constructor with invalid initial parameter options must throw std::invalid_argument
+  rclcpp::NodeOptions nan_opts;
+  nan_opts.parameter_overrides({rclcpp::Parameter("target_altitude_m",
+        std::numeric_limits<double>::quiet_NaN())});
+  EXPECT_THROW(std::make_shared<AltitudeControlNode>(nan_opts), std::invalid_argument);
+
+  rclcpp::NodeOptions inf_opts;
+  inf_opts.parameter_overrides({rclcpp::Parameter("target_altitude_m",
+        std::numeric_limits<double>::infinity())});
+  EXPECT_THROW(std::make_shared<AltitudeControlNode>(inf_opts), std::invalid_argument);
+
+  rclcpp::NodeOptions overflow_opts;
+  overflow_opts.parameter_overrides({rclcpp::Parameter("target_altitude_m", 1e39)});
+  EXPECT_THROW(std::make_shared<AltitudeControlNode>(overflow_opts), std::invalid_argument);
+
+  // Constructor with valid altitude and 0.0 (landing) must succeed
+  rclcpp::NodeOptions valid_opts;
+  valid_opts.parameter_overrides({rclcpp::Parameter("target_altitude_m", 3.5)});
+  auto valid_node = std::make_shared<AltitudeControlNode>(valid_opts);
+  EXPECT_NEAR(valid_node->target_altitude_m(), 3.5, 1e-5);
+
+  rclcpp::NodeOptions zero_opts;
+  zero_opts.parameter_overrides({rclcpp::Parameter("target_altitude_m", 0.0)});
+  auto zero_node = std::make_shared<AltitudeControlNode>(zero_opts);
+  EXPECT_NEAR(zero_node->target_altitude_m(), 0.0, 1e-5);
+}
+
+// 9. Dynamic parameter updates: valid, 0.0, and rejection of invalid values
+TEST_F(AltitudeControlTest, RuntimeParameterUpdateValidation)
+{
+  auto node = std::make_shared<AltitudeControlNode>();
+  EXPECT_NEAR(node->target_altitude_m(), 2.0, 1e-5);
+
+  // Valid update to 4.0 m
+  auto res1 = node->set_parameter(rclcpp::Parameter("target_altitude_m", 4.0));
+  EXPECT_TRUE(res1.successful);
+  EXPECT_NEAR(node->target_altitude_m(), 4.0, 1e-5);
+
+  // Valid update to 0.0 m (landing)
+  auto res2 = node->set_parameter(rclcpp::Parameter("target_altitude_m", 0.0));
+  EXPECT_TRUE(res2.successful);
+  EXPECT_NEAR(node->target_altitude_m(), 0.0, 1e-5);
+
+  // Rejected update: NaN
+  auto res_nan = node->set_parameter(rclcpp::Parameter("target_altitude_m",
+      std::numeric_limits<double>::quiet_NaN()));
+  EXPECT_FALSE(res_nan.successful);
+  EXPECT_NE(res_nan.reason.find("target_altitude_m"), std::string::npos);
+  EXPECT_NEAR(node->target_altitude_m(), 0.0, 1e-5);
+
+  // Rejected update: Infinity
+  auto res_inf = node->set_parameter(rclcpp::Parameter("target_altitude_m",
+      std::numeric_limits<double>::infinity()));
+  EXPECT_FALSE(res_inf.successful);
+  EXPECT_NE(res_inf.reason.find("target_altitude_m"), std::string::npos);
+  EXPECT_NEAR(node->target_altitude_m(), 0.0, 1e-5);
+
+  // Rejected update: Float overflow
+  auto res_overflow = node->set_parameter(rclcpp::Parameter("target_altitude_m", 1e39));
+  EXPECT_FALSE(res_overflow.successful);
+  EXPECT_NE(res_overflow.reason.find("target_altitude_m"), std::string::npos);
+  EXPECT_NEAR(node->target_altitude_m(), 0.0, 1e-5);
+}
+
+// 10. Atomic batch update rejection preserves existing target altitude and publish rate
+TEST_F(AltitudeControlTest, AtomicBatchUpdateRejectionPreservesOldState)
+{
+  auto node = std::make_shared<AltitudeControlNode>();
+  EXPECT_NEAR(node->target_altitude_m(), 2.0, 1e-5);
+  EXPECT_NEAR(node->publish_rate_hz(), 10.0, 1e-5);
+
+  // Atomic batch update: valid altitude (5.0), but invalid publish rate (-1.0)
+  // Entire request must be rejected; altitude must remain 2.0
+  auto res1 = node->set_parameters_atomically({
+      rclcpp::Parameter("target_altitude_m", 5.0),
+      rclcpp::Parameter("publish_rate_hz", -1.0)
+  });
+  EXPECT_FALSE(res1.successful);
+  EXPECT_NEAR(node->target_altitude_m(), 2.0, 1e-5);
+  EXPECT_NEAR(node->publish_rate_hz(), 10.0, 1e-5);
+
+  // Atomic batch update: invalid altitude (NaN), but valid publish rate (20.0)
+  // Entire request must be rejected; publish rate must remain 10.0
+  auto res2 = node->set_parameters_atomically({
+      rclcpp::Parameter("target_altitude_m", std::numeric_limits<double>::quiet_NaN()),
+      rclcpp::Parameter("publish_rate_hz", 20.0)
+  });
+  EXPECT_FALSE(res2.successful);
+  EXPECT_NEAR(node->target_altitude_m(), 2.0, 1e-5);
+  EXPECT_NEAR(node->publish_rate_hz(), 10.0, 1e-5);
+}
+
 }  // namespace

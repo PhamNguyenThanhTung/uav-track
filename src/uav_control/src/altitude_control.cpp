@@ -44,8 +44,31 @@ using namespace std::chrono_literals;
 class AltitudeControlNode : public rclcpp::Node
 {
 public:
-  AltitudeControlNode()
-  : Node("altitude_control")
+  static bool is_target_altitude_valid(double altitude_m, std::string * reason = nullptr)
+  {
+    if (std::isnan(altitude_m)) {
+      if (reason) {
+        *reason = "target_altitude_m must be finite (received NaN)";
+      }
+      return false;
+    }
+    if (std::isinf(altitude_m)) {
+      if (reason) {
+        *reason = "target_altitude_m must be finite (received infinity)";
+      }
+      return false;
+    }
+    if (std::abs(altitude_m) > static_cast<double>(std::numeric_limits<float>::max())) {
+      if (reason) {
+        *reason = "target_altitude_m exceeds representable float range";
+      }
+      return false;
+    }
+    return true;
+  }
+
+  explicit AltitudeControlNode(const rclcpp::NodeOptions & options = rclcpp::NodeOptions())
+  : Node("altitude_control", options)
   {
     // Declare parameters with default values
     this->declare_parameter<double>("target_altitude_m", 2.0);
@@ -53,6 +76,14 @@ public:
 
     target_altitude_m_ = this->get_parameter("target_altitude_m").as_double();
     publish_rate_hz_ = this->get_parameter("publish_rate_hz").as_double();
+
+    std::string alt_reason;
+    if (!is_target_altitude_valid(target_altitude_m_, &alt_reason)) {
+      RCLCPP_FATAL(this->get_logger(),
+                   "Invalid target_altitude_m: %f. %s.",
+                   target_altitude_m_, alt_reason.c_str());
+      throw std::invalid_argument(alt_reason);
+    }
 
     if (!is_publish_rate_valid(publish_rate_hz_)) {
       RCLCPP_FATAL(this->get_logger(),
@@ -77,15 +108,23 @@ public:
 
         for (const auto & param : parameters) {
           if (param.get_name() == "target_altitude_m") {
-            requested_target_altitude = param.as_double();
+            const double candidate_altitude = param.as_double();
+            std::string reason;
+            if (!is_target_altitude_valid(candidate_altitude, &reason)) {
+              result.successful = false;
+              result.reason = reason;
+              return result;
+            }
+            requested_target_altitude = candidate_altitude;
             target_altitude_changed = true;
           } else if (param.get_name() == "publish_rate_hz") {
-            requested_publish_rate = param.as_double();
-            if (!is_publish_rate_valid(requested_publish_rate)) {
+            const double candidate_rate = param.as_double();
+            if (!is_publish_rate_valid(candidate_rate)) {
               result.successful = false;
               result.reason = "publish_rate_hz must produce a finite, representable period";
               return result;
             }
+            requested_publish_rate = candidate_rate;
             publish_rate_changed = true;
           }
         }
@@ -222,7 +261,16 @@ public:
     return current_yaw_;
   }
 
-private:
+  double target_altitude_m() const
+  {
+    return target_altitude_m_;
+  }
+
+  double publish_rate_hz() const
+  {
+    return publish_rate_hz_;
+  }
+
   static bool is_publish_rate_valid(double rate_hz)
   {
     if (!std::isfinite(rate_hz) || rate_hz <= 0.0) {
@@ -233,6 +281,7 @@ private:
            period_ns <= static_cast<long double>(std::numeric_limits<int64_t>::max());
   }
 
+private:
   static std::chrono::nanoseconds timer_period_from_rate(double rate_hz)
   {
     if (!is_publish_rate_valid(rate_hz)) {
